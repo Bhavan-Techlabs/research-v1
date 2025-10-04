@@ -4,55 +4,19 @@ Handles storage and retrieval of prompts from MongoDB
 """
 
 from typing import List, Dict, Optional
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure, DuplicateKeyError
-import os
+
+from pymongo.errors import DuplicateKeyError
+from .mongo_manager import MongoDBManager
 
 
-class PromptManager:
+
+class PromptManager(MongoDBManager):
     """
-    MongoDB-based prompt management system
-    Stores and retrieves research prompts categorized by type
+    MongoDB-based prompt management system for research prompts.
+    Inherits from generic MongoDBManager.
     """
-
-    def __init__(
-        self, mongodb_uri: str = None, database_name: str = "research_assistant"
-    ):
-        """
-        Initialize the Prompt Manager
-
-        Args:
-            mongodb_uri: MongoDB connection URI
-            database_name: Name of the database
-        """
-        # Get MongoDB URI from parameter or environment variable
-        self.mongodb_uri = mongodb_uri or os.getenv("MONGODB_URI")
-
-        if not self.mongodb_uri:
-            raise ValueError(
-                "MongoDB URI not provided. Set MONGODB_URI environment variable or pass it as parameter."
-            )
-
-        self.database_name = database_name
-        self.client = None
-        self.db = None
-        self.prompts_collection = None
-
-        # Connect to MongoDB
-        self._connect()
-
-    def _connect(self):
-        """Establish connection to MongoDB"""
-        try:
-            self.client = MongoClient(self.mongodb_uri)
-            # Test the connection
-            self.client.admin.command("ping")
-            self.db = self.client[self.database_name]
-            self.prompts_collection = self.db["prompts"]
-            print(f"✅ Connected to MongoDB database: {self.database_name}")
-        except ConnectionFailure as e:
-            print(f"❌ Failed to connect to MongoDB: {e}")
-            raise
+    def __init__(self, mongodb_uri: str = None, database_name: str = "research_assistant"):
+        super().__init__(collection_name="prompts", mongodb_uri=mongodb_uri, database_name=database_name)
 
     def add_prompt(
         self,
@@ -60,8 +24,8 @@ class PromptManager:
         value: str,
         category: str = "general",
         description: str = "",
-        tags: List[str] = None,
-    ) -> Dict:
+        tags: list = None,
+    ) -> dict:
         """
         Add a new prompt to the database
 
@@ -83,11 +47,10 @@ class PromptManager:
             "value": value,
             "category": category,
             "description": description,
-            "tags": tags,
+            "tags": tags or [],
         }
-
         try:
-            result = self.prompts_collection.insert_one(prompt_doc)
+            result = self.insert_one(prompt_doc)
             return {
                 "success": True,
                 "id": str(result.inserted_id),
@@ -101,7 +64,7 @@ class PromptManager:
         except Exception as e:
             return {"success": False, "message": f"Error adding prompt: {str(e)}"}
 
-    def get_prompt_by_title(self, title: str) -> Optional[Dict]:
+    def get_prompt_by_title(self, title: str) -> dict:
         """
         Retrieve a prompt by its title
 
@@ -111,9 +74,9 @@ class PromptManager:
         Returns:
             Prompt document or None if not found
         """
-        return self.prompts_collection.find_one({"title": title})
+        return self.find_one({"title": title})
 
-    def get_prompts_by_category(self, category: str) -> List[Dict]:
+    def get_prompts_by_category(self, category: str) -> list:
         """
         Retrieve all prompts in a category
 
@@ -123,27 +86,27 @@ class PromptManager:
         Returns:
             List of prompt documents
         """
-        return list(self.prompts_collection.find({"category": category}))
+        return self.find({"category": category})
 
-    def get_all_prompts(self) -> List[Dict]:
+    def get_all_prompts(self) -> list:
         """
         Retrieve all prompts
 
         Returns:
             List of all prompt documents
         """
-        return list(self.prompts_collection.find())
+        return self.find()
 
-    def get_all_categories(self) -> List[str]:
+    def get_all_categories(self) -> list:
         """
         Get list of all unique categories
 
         Returns:
             List of category names
         """
-        return self.prompts_collection.distinct("category")
+        return self.distinct("category")
 
-    def update_prompt(self, title: str, updates: Dict) -> Dict:
+    def update_prompt(self, title: str, updates: dict) -> dict:
         """
         Update an existing prompt
 
@@ -154,8 +117,7 @@ class PromptManager:
         Returns:
             Dictionary with update result
         """
-        result = self.prompts_collection.update_one({"title": title}, {"$set": updates})
-
+        result = self.update_one({"title": title}, updates)
         if result.modified_count > 0:
             return {
                 "success": True,
@@ -169,7 +131,7 @@ class PromptManager:
         else:
             return {"success": False, "message": f"Prompt '{title}' not found"}
 
-    def delete_prompt(self, title: str) -> Dict:
+    def delete_prompt(self, title: str) -> dict:
         """
         Delete a prompt
 
@@ -179,8 +141,7 @@ class PromptManager:
         Returns:
             Dictionary with deletion result
         """
-        result = self.prompts_collection.delete_one({"title": title})
-
+        result = self.delete_one({"title": title})
         if result.deleted_count > 0:
             return {
                 "success": True,
@@ -189,7 +150,7 @@ class PromptManager:
         else:
             return {"success": False, "message": f"Prompt '{title}' not found"}
 
-    def search_prompts(self, search_term: str) -> List[Dict]:
+    def search_prompts(self, search_term: str) -> list:
         """
         Search prompts by text in title, description, or tags
 
@@ -206,9 +167,9 @@ class PromptManager:
                 {"tags": {"$regex": search_term, "$options": "i"}},
             ]
         }
-        return list(self.prompts_collection.find(query))
+        return self.find(query)
 
-    def bulk_add_prompts(self, prompts: List[Dict]) -> Dict:
+    def bulk_add_prompts(self, prompts: list) -> dict:
         """
         Add multiple prompts at once
 
@@ -219,7 +180,7 @@ class PromptManager:
             Dictionary with insertion results
         """
         try:
-            result = self.prompts_collection.insert_many(prompts, ordered=False)
+            result = self.insert_many(prompts)
             return {
                 "success": True,
                 "inserted_count": len(result.inserted_ids),
@@ -228,11 +189,7 @@ class PromptManager:
         except Exception as e:
             return {"success": False, "message": f"Error during bulk insert: {str(e)}"}
 
-    def close(self):
-        """Close the MongoDB connection"""
-        if self.client:
-            self.client.close()
-            print("✅ MongoDB connection closed")
+    # close() is inherited from MongoDBManager
 
 
 def migrate_prompts_from_list(prompts_list: List[Dict], mongodb_uri: str = None):
