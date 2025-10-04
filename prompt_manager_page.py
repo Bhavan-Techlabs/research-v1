@@ -1,9 +1,6 @@
 import streamlit as st
 from src.utils.mongo_utils import PromptManager
 
-st.set_page_config(page_title="Prompt Manager", page_icon="📝")
-st.title("📝 Prompt Manager")
-
 # MongoDB connection (uses env var or default)
 prompt_manager = PromptManager()
 
