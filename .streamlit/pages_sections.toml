@@ -5,13 +5,13 @@ icon = "📄"
 
 [[pages]]
 name = "Cool apps"
-icon = ":pig:"
+icon = "🐷"
 is_section = true
 
 [[pages]]
 path = "example_two.py"
 name = "Example Two"
-icon = ":material/history:"
+icon = "⏳"
 
 [[pages]]
 path = "example_four.py"
@@ -20,11 +20,13 @@ icon = "📖"
 
 [[pages]]
 name = "Other apps"
-icon = ":horse:"
+icon = "🐴"
 is_section = true
 
 [[pages]]
 path = "example_three.py"
+
+icon = "📄"
 
 [[pages]]
 path = "example_five.py"
