@@ -1,25 +1,24 @@
 [[pages]]
-path = "example_one.py"
-name = "st-pages"
+path = "about_st_pages.py"
+name = "About st-pages"
 icon = "📄"
 
 [[pages]]
-path = "example_two.py"
-name = "Example Two"
-icon = "⏳"
+path = "research_assistant.py"
+name = "Research Assistant"
+icon = "🔍"
 
 [[pages]]
-path = "example_four.py"
-name = "Try hiding pages"
-icon = "📖"
-
-[[pages]]
-path = "example_three.py"
-
+path = "paper_analyzer_page.py"
+name = "Paper Analyzer"
 icon = "📄"
 
 [[pages]]
-path = "example_five.py"
-name = "Example Five"
-icon = "🧰"
-url_path = "a_very_long_page_title"
+path = "rag_chat_page.py"
+name = "RAG Chat System"
+icon = "🤖"
+
+[[pages]]
+path = "settings_page.py"
+name = "Settings"
+icon = "🔧"
