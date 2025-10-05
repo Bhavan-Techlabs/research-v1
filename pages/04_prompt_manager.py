@@ -8,6 +8,7 @@ import json
 from typing import Dict, List, Optional
 from src.utils.session_manager import SessionStateManager
 from src.utils.prompt_manager import PromptManager as MongoPromptManager
+from src.utils.model_manager import ModelManager
 
 st.markdown("Create, manage, and organize research prompts for various analysis tasks")
 SessionStateManager.initialize()
@@ -180,6 +181,114 @@ class PromptManager:
             return False, f"Error deleting prompts: {e}"
 
 
+# ---------- DIALOG: TRY PROMPT ----------
+@st.dialog("🚀 Try Prompt", width="large")
+def try_prompt_dialog(prompt_title: str, prompt_data: Dict):
+    """Dialog for testing prompts with variable substitution and LLM chat"""
+
+    st.markdown(f"### {prompt_title}")
+    if prompt_data.get("description"):
+        st.markdown(f"*{prompt_data['description']}*")
+
+    st.divider()
+
+    # Initialize chat history for this prompt if not exists
+    chat_key = f"chat_history_{prompt_title}"
+    if chat_key not in st.session_state:
+        st.session_state[chat_key] = []
+
+    # Variable inputs section
+    variables = prompt_data.get("variables", [])
+    variable_values = {}
+
+    if variables:
+        st.markdown("#### 📝 Fill in Variables")
+        for var in variables:
+            variable_values[var] = st.text_input(
+                f"{var}",
+                key=f"var_{prompt_title}_{var}",
+                placeholder=f"Enter value for {var}...",
+            )
+        st.divider()
+
+    # Display original prompt template
+    with st.expander("📄 View Prompt Template", expanded=False):
+        st.code(prompt_data["prompt"], language=None)
+
+    st.divider()
+
+    # Chat interface
+    st.markdown("#### 💬 Chat")
+
+    # Display chat history
+    for message in st.session_state[chat_key]:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Chat input
+    user_input = st.chat_input("Send a message or press Enter to use the prompt...")
+
+    if user_input:
+        # Check if all variables are filled
+        if variables:
+            missing_vars = [var for var in variables if not variable_values.get(var)]
+            if missing_vars:
+                st.error(f"⚠️ Please fill in all variables: {', '.join(missing_vars)}")
+                st.stop()
+
+        # Populate prompt with variables
+        populated_prompt = prompt_data["prompt"]
+        for var, value in variable_values.items():
+            populated_prompt = populated_prompt.replace(f"{{{var}}}", value)
+
+        # If user just pressed enter or sent empty message, use the populated prompt
+        # Otherwise, append user input to the populated prompt
+        if user_input.strip():
+            final_prompt = f"{populated_prompt}\n\n{user_input}"
+        else:
+            final_prompt = populated_prompt
+
+        # Add user message to chat history
+        st.session_state[chat_key].append(
+            {
+                "role": "user",
+                "content": user_input if user_input.strip() else populated_prompt,
+            }
+        )
+
+        # Get LLM response
+        try:
+            model_manager = ModelManager()
+
+            with st.spinner("🤔 Thinking..."):
+                response = model_manager.generate_completion(
+                    prompt=final_prompt, temperature=0.7, max_tokens=2000
+                )
+
+            # Add assistant response to chat history
+            st.session_state[chat_key].append(
+                {"role": "assistant", "content": response}
+            )
+
+            st.rerun()
+
+        except Exception as e:
+            st.error(f"❌ Error generating response: {e}")
+            st.info("💡 Make sure you have configured your LLM in Settings page")
+
+    # Clear chat button
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        if st.button("🗑️ Clear Chat", use_container_width=True):
+            st.session_state[chat_key] = []
+            st.rerun()
+    with col2:
+        if st.button("❌ Close", use_container_width=True, type="primary"):
+            st.session_state.pop("try_prompt", None)
+            st.session_state.pop("try_prompt_data", None)
+            st.rerun()
+
+
 with st.sidebar:
     st.header("🔍 Filters")
 
@@ -187,6 +296,14 @@ with st.sidebar:
     selected_category = st.selectbox("Category", categories)
 
     search_query = st.text_input("🔎 Search prompts", placeholder="Enter keywords...")
+
+
+# Handle try prompt dialog
+if st.session_state.get("try_prompt"):
+    prompt_title = st.session_state["try_prompt"]
+    prompt_data = st.session_state.get("try_prompt_data")
+    if prompt_data:
+        try_prompt_dialog(prompt_title, prompt_data)
 
 
 tab1, tab2, tab3 = st.tabs(["📚 Browse Prompts", "➕ Add New", "📊 Statistics"])
@@ -251,6 +368,9 @@ with tab1:
                         "✏️ Edit", key=f"edit_{prompt_id}", use_container_width=True
                     ):
                         st.session_state["edit_prompt"] = prompt_title
+                        st.toast(
+                            "📝 Switch to 'Add New' tab to edit the prompt", icon="ℹ️"
+                        )
                         st.rerun()
 
 
