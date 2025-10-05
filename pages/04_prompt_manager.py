@@ -181,10 +181,9 @@ class PromptManager:
             return False, f"Error deleting prompts: {e}"
 
 
-# ---------- DIALOG: TRY PROMPT ----------
-@st.dialog("🚀 Try Prompt", width="medium")
-def try_prompt_dialog(prompt_title: str, prompt_data: Dict):
-    """Dialog for testing prompts with variable substitution and LLM chat"""
+# ---------- TRY PROMPT TAB CONTENT ----------
+def render_try_prompt_tab(prompt_title: str, prompt_data: Dict):
+    """Render the Try Prompt tab content"""
 
     st.markdown(f"### {prompt_title}")
     if prompt_data.get("description"):
@@ -257,11 +256,6 @@ def try_prompt_dialog(prompt_title: str, prompt_data: Dict):
         try:
             model_manager = ModelManager()
 
-            # with st.spinner("🤔 Thinking..."):
-            #     response = model_manager.generate_completion(
-            #         prompt=final_prompt, temperature=0.7, max_tokens=2000
-            #     )
-
             # Display assistant message with streaming
             with st.chat_message("assistant"):
                 # Use st.write_stream to display the response as it's generated
@@ -281,8 +275,8 @@ def try_prompt_dialog(prompt_title: str, prompt_data: Dict):
             st.error(f"❌ Error generating response: {e}")
             st.info("💡 Make sure you have configured your LLM in Settings page")
 
-    # Clear chat button
-    col1, col2 = st.columns([2, 2])
+    # Clear chat and close buttons
+    col1, col2 = st.columns([1, 1])
     with col1:
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state[chat_key] = []
@@ -303,15 +297,23 @@ with st.sidebar:
     search_query = st.text_input("🔎 Search prompts", placeholder="Enter keywords...")
 
 
-# Handle try prompt dialog
+# Determine which tab to show based on session state
 if st.session_state.get("try_prompt"):
-    prompt_title = st.session_state["try_prompt"]
-    prompt_data = st.session_state.get("try_prompt_data")
-    if prompt_data:
-        try_prompt_dialog(prompt_title, prompt_data)
+    tab_names = ["📚 Browse Prompts", "➕ Add New", "🚀 Try Prompt", "📊 Statistics"]
+    default_tab = 2  # Index of Try Prompt tab
+else:
+    tab_names = ["📚 Browse Prompts", "➕ Add New", "📊 Statistics"]
+    default_tab = 0
 
+# Create tabs dynamically
+tabs = st.tabs(tab_names)
 
-tab1, tab2, tab3 = st.tabs(["📚 Browse Prompts", "➕ Add New", "📊 Statistics"])
+# Assign tabs based on whether Try Prompt is active
+if st.session_state.get("try_prompt"):
+    tab1, tab2, tab_try, tab3 = tabs
+else:
+    tab1, tab2, tab3 = tabs
+    tab_try = None
 
 # ---------- TAB 1: BROWSE ----------
 with tab1:
@@ -359,6 +361,7 @@ with tab1:
                     )
 
                 col1, col2 = st.columns([1, 1])
+                col1, col2 = st.columns([1, 1])
                 with col1:
                     if st.button(
                         "🚀 Try Prompt",
@@ -376,9 +379,6 @@ with tab1:
                         st.session_state.pop("try_prompt", None)
                         st.session_state.pop("try_prompt_data", None)
                         st.session_state["edit_prompt"] = prompt_title
-                        st.toast(
-                            "📝 Switch to 'Add New' tab to edit the prompt", icon="ℹ️"
-                        )
                         st.rerun()
 
 
@@ -466,6 +466,20 @@ with tab2:
                     st.rerun()
                 else:
                     st.error(result.get("message", "Operation failed"))
+
+
+# ---------- TAB TRY: TRY PROMPT ----------
+if tab_try is not None:
+    with tab_try:
+        if st.session_state.get("try_prompt"):
+            prompt_title = st.session_state["try_prompt"]
+            prompt_data = st.session_state.get("try_prompt_data")
+            if prompt_data:
+                render_try_prompt_tab(prompt_title, prompt_data)
+            else:
+                st.error("Prompt data not found")
+                st.session_state.pop("try_prompt", None)
+                st.rerun()
 
 
 # ---------- TAB 3: STATISTICS ----------
