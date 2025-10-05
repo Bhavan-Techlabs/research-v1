@@ -1,4 +1,9 @@
 [[pages]]
+path = "home_page.py"
+name = "Home"
+icon = "🏠"
+
+[[pages]]
 name = "Research Tools"
 icon = "🔬"
 is_section = true
