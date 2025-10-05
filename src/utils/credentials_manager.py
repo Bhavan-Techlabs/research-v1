@@ -324,7 +324,7 @@ class LLMConfigWidget:
 
         llm_manager = get_llm_manager()
 
-        st.subheader("🔑 LLM Provider Configuration")
+        st.subheader("All LLM Providers")
         st.markdown("Configure your API keys for different LLM providers:")
 
         # Get all providers from the manager (now loaded from MongoDB)

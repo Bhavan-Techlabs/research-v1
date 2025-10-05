@@ -1,27 +1,55 @@
 """
 OpenAI Service
-Handles all interactions with OpenAI API
+Handles all interactions with OpenAI API using dynamic LLM Manager
 """
 
 from typing import List, Dict, Optional
 from openai import OpenAI
-from langchain_openai import ChatOpenAI
+from src.services.llm_manager import get_llm_manager
+from src.utils.credentials_manager import CredentialsManager
 from config.settings import Settings
 
 
 class OpenAIService:
-    """Service for OpenAI API operations"""
+    """Service for OpenAI API operations with multi-LLM support"""
 
-    def __init__(self, model_name: str = None):
+    def __init__(self, provider: str, model_name: str, temperature: float = None):
         """
-        Initialize OpenAI service
+        Initialize OpenAI service with dynamic LLM support
 
         Args:
-            model_name: Model to use (defaults to Settings.DEFAULT_MODEL)
+            provider: LLM provider name (e.g., 'openai', 'anthropic')
+            model_name: Model to use
+            temperature: Temperature for generation (defaults to Settings.DEFAULT_TEMPERATURE)
         """
-        self.model_name = model_name or Settings.DEFAULT_MODEL
-        self.client = OpenAI(api_key=Settings.OPENAI_API_KEY)
-        self.llm = ChatOpenAI(model=self.model_name)
+        if not provider or not model_name:
+            raise ValueError("Both provider and model_name are required parameters")
+
+        self.provider = provider
+        self.model_name = model_name
+        self.temperature = (
+            temperature if temperature is not None else Settings.DEFAULT_TEMPERATURE
+        )
+
+        # Get credentials and initialize LLM via LLM Manager
+        llm_manager = get_llm_manager()
+        creds = CredentialsManager.get_credential(provider)
+        llm_manager.set_credentials(provider, **creds)
+
+        # Initialize LLM with specified temperature
+        self.llm = llm_manager.initialize_model(
+            provider=provider, model_name=model_name, temperature=self.temperature
+        )
+
+        # Initialize OpenAI client for direct API calls (if provider is OpenAI)
+        if provider.lower() == "openai":
+            api_key = creds.get("api_key")
+            if api_key:
+                self.client = OpenAI(api_key=api_key)
+            else:
+                self.client = None
+        else:
+            self.client = None
 
     def chat_completion(
         self,
@@ -42,9 +70,12 @@ class OpenAIService:
         Returns:
             Response content string
         """
-        temperature = (
-            temperature if temperature is not None else Settings.DEFAULT_TEMPERATURE
-        )
+        if not self.client:
+            raise ValueError(
+                "OpenAI client not available. This method only works with OpenAI provider."
+            )
+
+        temperature = temperature if temperature is not None else self.temperature
         max_tokens = (
             max_tokens if max_tokens is not None else Settings.DEFAULT_MAX_TOKENS
         )

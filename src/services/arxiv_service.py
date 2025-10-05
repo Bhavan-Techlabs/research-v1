@@ -9,22 +9,38 @@ from langchain_community.retrievers import ArxivRetriever
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain_community.agent_toolkits.load_tools import load_tools
 from langchain import hub
-from langchain_openai import ChatOpenAI
-from config.settings import Settings
+from src.services.llm_manager import get_llm_manager
+from src.utils.credentials_manager import CredentialsManager
 
 
 class ArxivService:
     """Service for ArXiv operations"""
 
-    def __init__(self, model_name: str = None):
+    def __init__(self, provider: str, model_name: str):
         """
         Initialize ArXiv service
 
         Args:
+            provider: LLM provider (e.g., 'openai', 'anthropic')
             model_name: Model for agent operations
         """
-        self.model_name = model_name or Settings.DEFAULT_MODEL
-        self.llm = ChatOpenAI(model=self.model_name)
+        if not provider or not model_name:
+            raise ValueError("Both provider and model_name are required")
+
+        self.provider = provider
+        self.model_name = model_name
+
+        # Initialize LLM using LLM Manager
+        llm_manager = get_llm_manager()
+        creds = CredentialsManager.get_credential(provider)
+
+        if not creds:
+            raise ValueError(f"No credentials found for provider '{provider}'")
+
+        llm_manager.set_credentials(provider, **creds)
+        self.llm = llm_manager.initialize_model(
+            provider=provider, model=model_name, temperature=0.0
+        )
 
     def search_with_agent(self, query: str) -> str:
         """

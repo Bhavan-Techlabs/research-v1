@@ -10,14 +10,17 @@ from config.settings import Settings
 class TokenManager:
     """Manages token counting and text optimization"""
 
-    def __init__(self, model_name: str = None):
+    def __init__(self, model_name: str):
         """
         Initialize Token Manager
 
         Args:
-            model_name: Model name for token encoding
+            model_name: Model name for token encoding (required)
         """
-        self.model_name = model_name or Settings.DEFAULT_MODEL
+        if not model_name:
+            raise ValueError("model_name is a required parameter")
+
+        self.model_name = model_name
 
     def count_tokens(self, text: str) -> int:
         """

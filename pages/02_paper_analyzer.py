@@ -108,18 +108,12 @@ with tab1:
                             tmp_file.write(uploaded_file.getvalue())
                             tmp_path = tmp_file.name
 
-                        # Get credentials
-                        api_key = CredentialsManager.get_api_key(provider)
-                        creds = CredentialsManager.get_credential(provider)
-
                         # Create analyzer with multi-LLM support
                         analyzer = PaperAnalyzer(
                             provider=provider,
                             model=model,
-                            api_key=api_key,
                             temperature=temperature,
                             max_tokens=max_tokens,
-                            **{k: v for k, v in creds.items() if k != "api_key"},
                         )
 
                         # Perform analysis
@@ -193,18 +187,12 @@ with tab2:
                             tmp_file.write(uploaded_file.getvalue())
                             temp_paths.append(tmp_file.name)
 
-                    # Get credentials
-                    api_key = CredentialsManager.get_api_key(provider)
-                    creds = CredentialsManager.get_credential(provider)
-
                     # Create analyzer
                     analyzer = PaperAnalyzer(
                         provider=provider,
                         model=model,
-                        api_key=api_key,
                         temperature=temperature,
                         max_tokens=max_tokens,
-                        **{k: v for k, v in creds.items() if k != "api_key"},
                     )
 
                     # Analyze each paper

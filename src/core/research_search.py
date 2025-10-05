@@ -13,16 +13,26 @@ from config.constants import SEARCH_SOURCES
 class ResearchSearcher:
     """Handles multi-source research paper search"""
 
-    def __init__(self, model_name: str = None):
+    def __init__(self, provider: str, model_name: str):
         """
         Initialize Research Searcher
 
         Args:
+            provider: LLM provider (e.g., 'openai', 'anthropic')
             model_name: Model to use for search agents
         """
-        self.arxiv_service = ArxivService(model_name=model_name)
-        self.semantic_service = SemanticScholarService(model_name=model_name)
-        self.search_service = SearchService(model_name=model_name)
+        if not provider or not model_name:
+            raise ValueError("Both provider and model_name are required")
+
+        self.provider = provider
+        self.model_name = model_name
+
+        # Initialize services with provider and model
+        self.arxiv_service = ArxivService(provider=provider, model_name=model_name)
+        self.semantic_service = SemanticScholarService(
+            provider=provider, model_name=model_name
+        )
+        self.search_service = SearchService(provider=provider, model_name=model_name)
 
     def search_all_sources(
         self,

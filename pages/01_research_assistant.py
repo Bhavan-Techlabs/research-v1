@@ -119,9 +119,7 @@ with tab1:
         else:
             try:
                 # Initialize searcher with provider and model
-                searcher = ResearchSearcher(
-                    provider=provider, model_name=model, api_key=None
-                )  # API key managed by CredentialsManager
+                searcher = ResearchSearcher(provider=provider, model_name=model)
 
                 # Progress tracking
                 progress_bar = st.progress(0)

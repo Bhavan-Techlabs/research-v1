@@ -1,6 +1,6 @@
 """
 Paper Analysis Module
-Handles research paper analysis operations
+Handles research paper analysis operations with multi-LLM support
 """
 
 import json
@@ -12,17 +12,39 @@ from src.utils.token_utils import TokenManager
 
 
 class PaperAnalyzer:
-    """Analyzes research papers using AI"""
+    """Analyzes research papers using AI with multi-LLM support"""
 
-    def __init__(self, model_name: str = None):
+    def __init__(
+        self,
+        provider: str,
+        model: str,
+        temperature: float = 0.0,
+        max_tokens: int = None,
+        **kwargs,
+    ):
         """
-        Initialize Paper Analyzer
+        Initialize Paper Analyzer with multi-LLM support
 
         Args:
-            model_name: Model to use for analysis
+            provider: LLM provider name (e.g., 'openai', 'anthropic')
+            model: Model name to use for analysis
+            temperature: Temperature for generation
+            max_tokens: Maximum tokens for generation
+            **kwargs: Additional provider-specific parameters
         """
-        self.openai_service = OpenAIService(model_name=model_name)
-        self.token_manager = TokenManager(model_name=model_name)
+        if not provider or not model:
+            raise ValueError("Both provider and model are required parameters")
+
+        self.provider = provider
+        self.model = model
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+
+        # Initialize services
+        self.openai_service = OpenAIService(
+            provider=provider, model_name=model, temperature=temperature
+        )
+        self.token_manager = TokenManager(model_name=model)
 
     def analyze_pdf(
         self,

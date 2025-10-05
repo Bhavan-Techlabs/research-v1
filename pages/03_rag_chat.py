@@ -10,6 +10,7 @@ from src.core.rag_system import RAGSystem
 from src.utils.credentials_manager import CredentialsManager, LLMConfigWidget
 from src.utils.session_manager import SessionStateManager
 from src.utils.document_utils import DocumentProcessor
+from src.utils.dynamic_selector import DynamicModelSelector
 
 # Page configuration
 st.markdown(
@@ -40,6 +41,21 @@ with st.sidebar:
     if not provider or not model:
         st.error("Please select a valid provider and model")
         st.stop()
+
+    st.divider()
+
+    # Embedding Model Selection
+    st.subheader("🔢 Embedding Model")
+    embedding_selection = DynamicModelSelector.render_embedding_selector(
+        default_provider=provider
+    )
+
+    if not embedding_selection:
+        st.error("Please select an embedding model")
+        st.stop()
+
+    embedding_provider = embedding_selection.get("provider")
+    embedding_model = embedding_selection.get("model")
 
     st.divider()
 
@@ -117,16 +133,13 @@ with tab1:
                         temp_path.write_bytes(uploaded_file.getvalue())
                         doc_paths.append(str(temp_path))
 
-                    # Get credentials
-                    api_key = CredentialsManager.get_api_key(provider)
-                    creds = CredentialsManager.get_credential(provider)
-
                     # Create RAG system
                     rag = RAGSystem(
                         provider=provider,
                         model=model,
-                        api_key=api_key,
-                        **{k: v for k, v in creds.items() if k != "api_key"},
+                        embedding_provider=embedding_provider,
+                        embedding_model=embedding_model,
+                        temperature=temperature,
                     )
 
                     # Create retriever from multiple documents
@@ -178,17 +191,13 @@ with tab1:
                         # Get retriever
                         retriever = SessionStateManager.get("rag_retriever")
 
-                        # Get credentials
-                        api_key = CredentialsManager.get_api_key(provider)
-                        creds = CredentialsManager.get_credential(provider)
-
                         # Create RAG system
                         rag = RAGSystem(
                             provider=provider,
                             model=model,
-                            api_key=api_key,
+                            embedding_provider=embedding_provider,
+                            embedding_model=embedding_model,
                             temperature=temperature,
-                            **{k: v for k, v in creds.items() if k != "api_key"},
                         )
 
                         # Query
