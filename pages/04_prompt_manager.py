@@ -12,6 +12,7 @@ from src.utils.prompt_manager import PromptManager as MongoPromptManager
 st.markdown("Create, manage, and organize research prompts for various analysis tasks")
 SessionStateManager.initialize()
 
+
 class PromptManager:
     """Manage research prompts with CRUD operations using MongoDB"""
 
@@ -39,7 +40,8 @@ class PromptManager:
             return {}
         prompts = mgr.get_all_prompts()
         return {
-            p["title"]: {
+            str(p["_id"]): {
+                "title": p["title"],
                 "category": p.get("category", "general"),
                 "description": p.get("description", ""),
                 "prompt": p.get("value", ""),
@@ -79,7 +81,8 @@ class PromptManager:
             return {}
         prompts = mgr.search_prompts(term)
         return {
-            p["title"]: {
+            str(p["_id"]): {
+                "title": p["title"],
                 "category": p.get("category", "general"),
                 "description": p.get("description", ""),
                 "prompt": p.get("value", ""),
@@ -126,7 +129,19 @@ class PromptManager:
 
     @staticmethod
     def export_prompts() -> str:
-        return json.dumps(PromptManager.get_all_prompts(), indent=2)
+        # Export without MongoDB _id, use title as key for compatibility
+        prompts = PromptManager.get_all_prompts()
+        export_dict = {
+            data["title"]: {
+                "category": data["category"],
+                "description": data["description"],
+                "prompt": data["prompt"],
+                "variables": data["variables"],
+                "tags": data["tags"],
+            }
+            for data in prompts.values()
+        }
+        return json.dumps(export_dict, indent=2)
 
     @staticmethod
     def import_prompts(prompts_json: str):
@@ -173,48 +188,6 @@ with st.sidebar:
 
     search_query = st.text_input("🔎 Search prompts", placeholder="Enter keywords...")
 
-    st.divider()
-    st.header("📤 Import/Export")
-
-    # Export
-    if st.button("📥 Export Prompts", use_container_width=True):
-        data = PromptManager.export_prompts()
-        st.download_button(
-            label="Download JSON",
-            data=data,
-            file_name="research_prompts.json",
-            mime="application/json",
-            use_container_width=True,
-        )
-
-    # Import
-    uploaded_file = st.file_uploader("📤 Import Prompts", type=["json"])
-    if uploaded_file:
-        try:
-            prompts_json = uploaded_file.read().decode()
-            success, message = PromptManager.import_prompts(prompts_json)
-            if success:
-                st.success(message)
-                st.rerun()
-            else:
-                st.error(message)
-        except Exception as e:
-            st.error(f"Error reading file: {e}")
-
-    st.divider()
-    if st.button("🗑️ Delete All Prompts", use_container_width=True):
-        if st.session_state.get("confirm_delete_all"):
-            success, message = PromptManager.delete_all_prompts()
-            st.session_state["confirm_delete_all"] = False
-            if success:
-                st.success(message)
-                st.rerun()
-            else:
-                st.error(message)
-        else:
-            st.session_state["confirm_delete_all"] = True
-            st.warning("⚠️ Click again to confirm deletion of ALL prompts")
-
 
 tab1, tab2, tab3 = st.tabs(["📚 Browse Prompts", "➕ Add New", "📊 Statistics"])
 
@@ -243,11 +216,18 @@ with tab1:
         st.info("No prompts found.")
     else:
         st.info(f"📝 Showing {len(filtered_prompts)} prompt(s)")
-        for name, data in filtered_prompts.items():
-            with st.expander(f"**{name}** - {data['category']}", expanded=False):
+        for prompt_id, data in filtered_prompts.items():
+            prompt_title = data["title"]
+            with st.expander(
+                f"**{prompt_title}** ({data['category']})", expanded=False
+            ):
                 if data.get("description"):
                     st.markdown(f"*{data['description']}*")
-                    st.divider()
+                if data.get("tags"):
+                    st.markdown(
+                        "**Tags:** " + ", ".join([f"`{t}`" for t in data["tags"]])
+                    )
+                st.divider()
                 st.markdown("**Prompt:**")
                 st.code(data["prompt"], language=None)
                 if data["variables"]:
@@ -255,24 +235,22 @@ with tab1:
                         "**Variables:** "
                         + ", ".join([f"`{{{v}}}`" for v in data["variables"]])
                     )
-                if data.get("tags"):
-                    st.markdown(
-                        "**Tags:** " + ", ".join([f"`{t}`" for t in data["tags"]])
-                    )
 
                 col1, col2 = st.columns([1, 1])
                 with col1:
                     if st.button(
-                        "🚀 Try Prompt", key=f"try_{name}", use_container_width=True
+                        "🚀 Try Prompt",
+                        key=f"try_{prompt_id}",
+                        use_container_width=True,
                     ):
-                        st.session_state["try_prompt"] = name
+                        st.session_state["try_prompt"] = prompt_title
                         st.session_state["try_prompt_data"] = data
                         st.rerun()
                 with col2:
                     if st.button(
-                        "✏️ Edit", key=f"edit_{name}", use_container_width=True
+                        "✏️ Edit", key=f"edit_{prompt_id}", use_container_width=True
                     ):
-                        st.session_state["edit_prompt"] = name
+                        st.session_state["edit_prompt"] = prompt_title
                         st.rerun()
 
 
