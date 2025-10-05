@@ -1,5 +1,12 @@
 """Seed Research Prompts to MongoDB"""
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from src.utils.prompt_manager import PromptManager
+
 
 def get_prompts():
     """Get default prompt configurations"""
@@ -445,7 +452,7 @@ def get_prompts():
             ],
         },
         {
-            "title": "Untitled Prompt",
+            "title": "Assess and Refine Software Engineering Research Ideas",
             "value": "I am working on a research development project for my software engineering degree. My goal is to identify valid research gaps, develop software based on these gaps, and create a thesis with a literature review (LR) and contributions. I need your help to ensure that my project makes significant contributions in the following areas:\n\n\n1. **Body of Knowledge (BoK):** Contribution to the academic literature and theoretical understanding in software engineering.\n2. **Domain of Research (Applied Research):** Contribution to practical applications and advancements in the specific research domain.\n3. **Technology (Software Engineering):** Contribution to technological advancements, including new software, tools, or methodologies.\nPlease assess the project ideas listed in the attached CSV file based on these criteria and provide guidance on how I can transform these ideas into a comprehensive software development project and thesis.\n\n\n**Criteria for Assessment:**\n\n\n1. **Alignment:** Confirm the project aligns with the software engineering/computer science academic discipline.\n2. **Impact:** Evaluate the project's importance by determining if it addresses significant problems or gaps.\n3. **Research Gap:** Ensure the project has a valid research gap, supported by at least 5 research papers or a survey paper.\n4. **Complexity:** Assess the challenge of achieving the research gap (higher complexity equals higher marks).\n5. **Contribution:**\n- **BoK:** How the project will contribute to the academic literature.\n- **Applied Research:** How the project will contribute to practical applications in the research domain.\n- **Technology:** How the project will contribute to advancements in software engineering.\n6. **Novelty:** Verify the project is unique and innovative.\n7. **Feasibility:** Confirm the project is feasible to complete within 2 semesters.\n8. **Data Availability:** Ensure any required dataset is accessible and available.\n\n\n**Instructions:**\n\n\nFor each project idea, provide feedback on its feasibility, relevance, and potential contributions based on the above criteria. Suggest how to narrow down the project focus and develop a software solution that addresses the identified research gaps.",
             "variables": [],
             "category": "misc",
@@ -654,7 +661,7 @@ def get_prompts():
             "tags": ["research", "bias detection", "explainable ai", "nlp", "analysis"],
         },
         {
-            "title": "Untitled Prompt",
+            "title": "Email Content Processor for Topic-Relevant Paper Extraction",
             "value": 'Act as a research assistant and process email content to determine if the research papers mentioned are relevant to my topic. For each paper in the email, provide a JSON output containing:\n\n- `title`: The title of the paper.\n- `isRelevant`: A boolean value indicating if the paper is relevant.\n- `relevancyScore`: A score (0–100) indicating the degree of relevance to my topic.\n- `link`: The hyperlink to the paper, if present in the email content.\n\n### Example Email Input:\n```\nDear Researcher,\n\nHere are this month’s published papers on AI Ethics:\n\n1. "Bias in Machine Learning Models" - Authors: Jane Doe, John Smith. [Link](https://example.com/paper1)\n2. "The Future of AI Ethics and Policy" - Authors: Alice Jones. [Link](https://example.com/paper2)\n3. "Quantum Computing and Its Impact on Ethics" - Authors: Bob Brown.\n\nBest regards,\nThe Research Team\n```\n\n### Expected Output:\n```json\n[\n{\n"title": "Bias in Machine Learning Models",\n"isRelevant": true,\n"relevancyScore": 85,\n"link": "https://example.com/paper1"\n},\n{\n"title": "The Future of AI Ethics and Policy",\n"isRelevant": true,\n"relevancyScore": 92,\n"link": "https://example.com/paper2"\n},\n{\n"title": "Quantum Computing and Its Impact on Ethics",\n"isRelevant": false,\n"relevancyScore": 40,\n"link": null\n}\n]\n```\n\n### Additional Context for Relevance Assessment:\nMy topic focuses on a framework to detect and interpret multiple forms of social bias within textual data. Bias Lens identifies biased language using NLP techniques (eg. classification) and also provides clear, actionable explanations by leveraging Explainable AI (XAI) techniques for detected biases. This project addresses the need for fairness and transparency in language processing, ensuring that both technical and non-technical audiences can comprehend and trust its outputs.\nUse this context to determine relevance and assign a `relevancyScore`.\n\nHere is the content of the email:',
             "variables": [],
             "category": "misc",
@@ -896,12 +903,6 @@ def get_prompts():
 
 def main():
     """Seed prompts to MongoDB"""
-    import sys
-    from pathlib import Path
-
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-
-    from src.utils.prompt_manager import PromptManager
 
     try:
         prompt_manager = PromptManager()

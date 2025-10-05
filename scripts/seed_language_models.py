@@ -8,14 +8,25 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.utils.model_manager import ModelManager
 
 
-def get_providers():
-    """Get default provider configurations"""
+def get_providers_with_models():
     return [
         {
             "provider": "openai",
             "name": "OpenAI",
             "api_key_env": "OPENAI_API_KEY",
-            "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+            "models": [
+                "gpt-5",
+                "gpt-5-mini",
+                "gpt-5-nano",
+                "gpt-4.1",
+                "gpt-4.1-mini",
+                "gpt-4.1-nano",
+                "o4-mini",
+                "o3",
+                "o3-mini",
+                "gpt-4o",
+                "gpt-4o-mini",
+            ],
             "requires_api_key": True,
         },
         {
@@ -23,10 +34,12 @@ def get_providers():
             "name": "Anthropic",
             "api_key_env": "ANTHROPIC_API_KEY",
             "models": [
-                "claude-3-5-sonnet-20241022",
-                "claude-3-opus-20240229",
-                "claude-3-sonnet-20240229",
-                "claude-3-haiku-20240307",
+                "claude-sonnet-4.5",
+                "claude-opus-4.1",
+                "claude-opus-4",
+                "claude-sonnet-4",
+                "claude-3-5-haiku",
+                "claude-3-haiku",
             ],
             "requires_api_key": True,
         },
@@ -68,9 +81,9 @@ def get_providers():
             "name": "Anthropic via Google Vertex AI",
             "api_key_env": "GOOGLE_APPLICATION_CREDENTIALS",
             "models": [
-                "claude-3-5-sonnet@20240620",
-                "claude-3-opus@20240229",
-                "claude-3-haiku@20240307",
+                "claude-sonnet-4.5",
+                "claude-opus-4.1",
+                "claude-opus-4",
             ],
             "requires_api_key": False,
             "requires_project": True,
@@ -80,10 +93,11 @@ def get_providers():
             "name": "AWS Bedrock",
             "api_key_env": "AWS_ACCESS_KEY_ID",
             "models": [
-                "anthropic.claude-3-5-sonnet-20241022-v2:0",
-                "anthropic.claude-3-sonnet-20240229-v1:0",
-                "meta.llama3-70b-instruct-v1:0",
-                "mistral.mistral-large-2402-v1:0",
+                "us.anthropic.claude-sonnet-4.5-v1:0",
+                "us.anthropic.claude-opus-4.1-v1:0",
+                "us.anthropic.claude-opus-4-v1:0",
+                "us.meta.llama3-70b-instruct-v1:0",
+                "us.mistral.mistral-large-2402-v1:0",
             ],
             "requires_api_key": True,
             "extra_env": ["AWS_SECRET_ACCESS_KEY", "AWS_REGION"],
@@ -93,8 +107,8 @@ def get_providers():
             "name": "AWS Bedrock Converse",
             "api_key_env": "AWS_ACCESS_KEY_ID",
             "models": [
-                "anthropic.claude-3-5-sonnet-20241022-v2:0",
-                "anthropic.claude-3-sonnet-20240229-v1:0",
+                "us.anthropic.claude-sonnet-4.5-v1:0",
+                "us.anthropic.claude-opus-4.1-v1:0",
             ],
             "requires_api_key": True,
             "extra_env": ["AWS_SECRET_ACCESS_KEY", "AWS_REGION"],
@@ -219,25 +233,16 @@ def main():
     """Seed providers to MongoDB"""
     try:
         model_manager = ModelManager()
-        providers = get_providers()
+        providers = get_providers_with_models()
 
         print(f"Seeding {len(providers)} providers...")
 
         for provider in providers:
-            provider_id = provider["provider"]
             result = model_manager.add_provider(**provider)
-
             if result.get("success"):
                 print(f"✓ {provider['name']}")
             else:
-                # Try updating if it already exists
-                result = model_manager.update_provider(
-                    provider_id, {k: v for k, v in provider.items() if k != "provider"}
-                )
-                if result.get("success"):
-                    print(f"✓ {provider['name']} (updated)")
-                else:
-                    print(f"✗ {provider['name']}: {result.get('message')}")
+                print(f"✗ {provider['name']}: {result.get('message')}")
 
         print("\nDone!")
         model_manager.close()

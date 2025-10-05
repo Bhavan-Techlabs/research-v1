@@ -18,7 +18,7 @@ class EmbeddingModelManager(MongoDBManager):
         self, mongodb_uri: str = None, database_name: str = "research_assistant"
     ):
         super().__init__(
-            collection_name="embedding_providers",
+            collection_name="embedding_models",
             mongodb_uri=mongodb_uri,
             database_name=database_name,
         )

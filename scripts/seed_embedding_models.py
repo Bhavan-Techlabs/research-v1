@@ -304,87 +304,25 @@ def get_embedding_providers():
 
 def main():
     """Seed embedding providers to MongoDB"""
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Manage embedding providers in MongoDB"
-    )
-    parser.add_argument(
-        "action",
-        choices=["list", "seed", "force-seed"],
-        help="Action to perform",
-        nargs="?",
-        default="seed",
-    )
-    parser.add_argument(
-        "--mongodb-uri",
-        help="MongoDB connection URI (defaults to MONGODB_URI env var)",
-    )
-
-    args = parser.parse_args()
-
     try:
-        embedding_manager = EmbeddingModelManager(mongodb_uri=args.mongodb_uri)
+        embedding_manager = EmbeddingModelManager()
         providers = get_embedding_providers()
 
-        if args.action == "list":
-            print("\n" + "=" * 70)
-            print("EMBEDDING PROVIDERS IN MONGODB")
-            print("=" * 70)
+        print(f"\nSeeding {len(providers)} embedding providers...")
 
-            existing = embedding_manager.get_all_providers()
-            if not existing:
-                print("❌ No embedding providers found")
+        for provider in providers:
+            result = embedding_manager.add_provider(**provider)
+
+            if result.get("success"):
+                print(f"✓ {provider['name']}")
             else:
-                for prov in existing:
-                    model_count = len(prov.get("models", []))
-                    print(f"\n✅ {prov.get('name', 'Unknown')}")
-                    print(f"   Provider: {prov.get('provider', 'N/A')}")
-                    print(f"   Models: {model_count}")
-                print(f"\n{'=' * 70}")
-                print(f"Total providers: {len(existing)}")
-                print("=" * 70)
+                print(f"⏭️  {provider['name']} (already exists)")
 
-        elif args.action in ["seed", "force-seed"]:
-            force = args.action == "force-seed"
-
-            if force:
-                print("\n⚠️  WARNING: This will update all existing providers!")
-                response = input("Continue? (yes/no): ")
-                if response.lower() != "yes":
-                    print("❌ Cancelled")
-                    return
-
-            print(f"\nSeeding {len(providers)} embedding providers...")
-
-            for provider in providers:
-                provider_id = provider["provider"]
-                result = embedding_manager.add_provider(**provider)
-
-                if result.get("success"):
-                    print(f"✓ {provider['name']}")
-                else:
-                    if force:
-                        result = embedding_manager.update_provider(
-                            provider_id,
-                            {k: v for k, v in provider.items() if k != "provider"},
-                        )
-                        if result.get("success"):
-                            print(f"✓ {provider['name']} (updated)")
-                        else:
-                            print(f"✗ {provider['name']}: {result.get('message')}")
-                    else:
-                        print(f"⏭️  {provider['name']} (already exists)")
-
-            print("\nDone!")
-
+        print("\nDone!")
         embedding_manager.close()
 
     except Exception as e:
         print(f"\n❌ Error: {str(e)}")
-        import traceback
-
-        traceback.print_exc()
         sys.exit(1)
 
 
