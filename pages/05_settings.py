@@ -10,9 +10,6 @@ from src.utils.session_manager import SessionStateManager
 from config.settings import Settings
 
 # Page configuration
-st.set_page_config(page_title="Settings", page_icon="⚙️", layout="wide")
-
-st.title("⚙️ Application Settings")
 st.markdown("Configure LLM providers, API keys, and other application settings")
 
 # Initialize

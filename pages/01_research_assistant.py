@@ -18,7 +18,6 @@ if not Settings.is_openai_configured():
     st.stop()
 
 # Header
-st.title("🔍 Research Assistant")
 st.markdown("Search for research papers across multiple academic databases")
 
 # Sidebar configuration

@@ -10,7 +10,6 @@ from config.settings import Settings
 SessionStateManager.initialize()
 
 # Header
-st.title("🏠 Research Assistant Platform")
 st.markdown("### Your AI-Powered Research Companion")
 
 st.markdown(

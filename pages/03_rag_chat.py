@@ -12,9 +12,6 @@ from src.utils.session_manager import SessionStateManager
 from src.utils.document_utils import DocumentProcessor
 
 # Page configuration
-st.set_page_config(page_title="RAG Chat", page_icon="💬", layout="wide")
-
-st.title("💬 Chat with Research Documents")
 st.markdown(
     "Upload documents and ask questions using RAG (Retrieval-Augmented Generation)"
 )

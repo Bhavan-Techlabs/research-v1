@@ -11,9 +11,6 @@ from src.utils.session_manager import SessionStateManager
 from src.utils.mongo_utils import PromptManager as MongoPromptManager
 
 # Page configuration
-st.set_page_config(page_title="Prompt Manager", page_icon="📝", layout="wide")
-
-st.title("📝 Research Prompt Manager")
 st.markdown("Create, manage, and organize research prompts for various analysis tasks")
 
 # Initialize

@@ -13,9 +13,6 @@ from src.utils.session_manager import SessionStateManager
 from config.constants import ANALYSIS_TYPES, UI_MESSAGES
 
 # Page configuration
-st.set_page_config(page_title="Paper Analyzer", page_icon="📄", layout="wide")
-
-st.title("📄 Research Paper Analyzer")
 st.markdown("Analyze research papers with AI-powered insights using your choice of LLM")
 
 # Initialize

@@ -1,5 +1,5 @@
 cookie:
-  expiry_days: 30
+  expiry_days: 0
   key: da47w23s
   name: st_research_v1
 credentials:
@@ -8,9 +8,10 @@ credentials:
       email: bhavanl@techprovint.com
       first_name: Bhavan
       last_name: Loganathan
-      password: abc # Will be hashed automatically
-      roles: # Optional
-      - admin
-      - editor
-      - viewer
+      password: abc
+    user:
+      email: user@example.com
+      first_name: User
+      last_name: Example
+      password: pass
 api_key: 08kvalseg5v6j1mgxhyg24xh7y5vzsj9

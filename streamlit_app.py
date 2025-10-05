@@ -10,16 +10,25 @@ import yaml
 from yaml.loader import SafeLoader
 from pathlib import Path
 
+app_config = {
+    "app_name": "Research Assistant Platform",
+    "version": "2.0.0",
+    "author": "Your Name",
+    "description": "A platform to manage research prompts and tasks.",
+    "auth_config_path": ".streamlit/config.yaml",
+    "nav_config_path": ".streamlit/pages_sections.toml",
+}
+
 # Page configuration
 st.set_page_config(
-    page_title="Research Assistant Platform",
+    page_title=app_config["app_name"],
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # Load authentication configuration
-config_path = Path(".streamlit/config.yaml")
+config_path = Path(app_config["auth_config_path"])
 if not config_path.exists():
     st.error(
         "⚠️ Authentication configuration file not found. Please create .streamlit/config.yaml"
@@ -53,7 +62,7 @@ if st.session_state.get("authentication_status"):
         st.markdown("---")
 
     # Load navigation
-    nav = get_nav_from_toml(".streamlit/pages_sections_v2.toml")
+    nav = get_nav_from_toml(app_config["nav_config_path"])
     pg = st.navigation(nav)
     add_page_title(pg)
     pg.run()
