@@ -12,7 +12,7 @@ from pathlib import Path
 
 app_config = {
     "app_name": "Research Assistant Platform",
-    "version": "2.0.0",
+    "version": "1.0.0",
     "author": "Your Name",
     "description": "A platform to manage research prompts and tasks.",
     "auth_config_path": ".streamlit/config.yaml",
@@ -24,7 +24,6 @@ st.set_page_config(
     page_title=app_config["app_name"],
     page_icon="🔬",
     layout="wide",
-    initial_sidebar_state="expanded",
 )
 
 # Load authentication configuration
