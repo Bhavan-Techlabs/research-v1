@@ -182,7 +182,7 @@ class PromptManager:
 
 
 # ---------- DIALOG: TRY PROMPT ----------
-@st.dialog("🚀 Try Prompt", width="large")
+@st.dialog("🚀 Try Prompt", width="medium")
 def try_prompt_dialog(prompt_title: str, prompt_data: Dict):
     """Dialog for testing prompts with variable substitution and LLM chat"""
 
@@ -190,12 +190,14 @@ def try_prompt_dialog(prompt_title: str, prompt_data: Dict):
     if prompt_data.get("description"):
         st.markdown(f"*{prompt_data['description']}*")
 
-    st.divider()
-
     # Initialize chat history for this prompt if not exists
     chat_key = f"chat_history_{prompt_title}"
     if chat_key not in st.session_state:
         st.session_state[chat_key] = []
+
+    # Display original prompt template
+    with st.expander("📄 View Prompt Template", expanded=False):
+        st.code(prompt_data["prompt"], language=None)
 
     # Variable inputs section
     variables = prompt_data.get("variables", [])
@@ -209,11 +211,6 @@ def try_prompt_dialog(prompt_title: str, prompt_data: Dict):
                 key=f"var_{prompt_title}_{var}",
                 placeholder=f"Enter value for {var}...",
             )
-        st.divider()
-
-    # Display original prompt template
-    with st.expander("📄 View Prompt Template", expanded=False):
-        st.code(prompt_data["prompt"], language=None)
 
     st.divider()
 
@@ -367,6 +364,9 @@ with tab1:
                     if st.button(
                         "✏️ Edit", key=f"edit_{prompt_id}", use_container_width=True
                     ):
+                        # Clear try_prompt state to avoid conflicts
+                        st.session_state.pop("try_prompt", None)
+                        st.session_state.pop("try_prompt_data", None)
                         st.session_state["edit_prompt"] = prompt_title
                         st.toast(
                             "📝 Switch to 'Add New' tab to edit the prompt", icon="ℹ️"
