@@ -6,9 +6,11 @@ Handles research paper analysis operations with multi-LLM support
 import json
 from typing import Dict
 from io import BytesIO
-from src.services.openai_service import OpenAIService
+from src.services.llm_manager import get_llm_manager
+from src.utils.credentials_manager import CredentialsManager
 from src.utils.document_utils import DocumentProcessor
 from src.utils.token_utils import TokenManager
+from config.settings import Settings
 
 
 class PaperAnalyzer:
@@ -38,12 +40,17 @@ class PaperAnalyzer:
         self.provider = provider
         self.model = model
         self.temperature = temperature
-        self.max_tokens = max_tokens
+        self.max_tokens = max_tokens if max_tokens else Settings.DEFAULT_MAX_TOKENS
 
-        # Initialize services
-        self.openai_service = OpenAIService(
+        # Initialize LLM using dynamic LLM Manager (same pattern as test connection)
+        llm_manager = get_llm_manager()
+        creds = CredentialsManager.get_credential(provider)
+        llm_manager.set_credentials(provider, **creds)
+
+        self.llm = llm_manager.initialize_model(
             provider=provider, model_name=model, temperature=temperature
         )
+
         self.token_manager = TokenManager(model_name=model)
 
     def analyze_pdf(
@@ -72,9 +79,12 @@ class PaperAnalyzer:
         # Build analysis prompt
         prompt = self._build_analysis_prompt(text, analysis_type, custom_prompt)
 
-        # Get analysis
+        # Get analysis using LLM directly
         try:
-            result = self.openai_service.analyze_paper(prompt)
+            # Invoke LLM with the analysis prompt
+            response = self.llm.invoke(prompt)
+            result = response.content
+
             return {"success": True, "result": result, "word_count": len(text.split())}
         except Exception as e:
             return {"error": str(e), "success": False}
