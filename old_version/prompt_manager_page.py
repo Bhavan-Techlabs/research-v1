@@ -2,24 +2,6 @@ import streamlit as st
 from src.utils.mongo_utils import PromptManager
 
 # Example prompt structure display
-st.sidebar.markdown("## Example Prompt Structure")
-example_prompt = {
-    "title": "Keyword Generation for Research",
-    "value": "Generate a list of relevant keywords, phrases, and Boolean operators for conducting an exhaustive database search on {research}. Include both broad and specific terms, as well as any relevant acronyms or synonyms used in the field. \n\n research:",
-    "variables": ["research"],
-    "category": "research-assistant",
-    "description": "This prompt generates a comprehensive list of keywords, phrases, and Boolean operators for database searches related to a specified research topic.",
-    "tags": ["keywords", "database", "search", "boolean", "research"]
-}
-
-st.sidebar.code(f'''
-"title": "{example_prompt["title"]}",
-"value": "{example_prompt["value"]}",
-"variables": {example_prompt["variables"]},
-"category": "{example_prompt["category"]}",
-"description": "{example_prompt["description"]}",
-"tags": {example_prompt["tags"]}
-''', language="python")
 
 # MongoDB connection (uses env var or default)
 prompt_manager = PromptManager()

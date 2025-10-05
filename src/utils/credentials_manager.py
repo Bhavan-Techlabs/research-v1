@@ -140,46 +140,126 @@ class LLMConfigWidget:
             expanded=not is_configured,
         ):
             # API Key input
-            current_key = CredentialsManager.get_api_key(provider_id)
-            api_key_placeholder = "***" * 10 if current_key else "Enter API key"
+            requires_api_key = provider_info.get("requires_api_key", True)
+            current_cred = CredentialsManager.get_credential(provider_id)
+            current_key = current_cred.get("api_key") if current_cred else None
 
-            api_key = st.text_input(
-                f"{provider_name} API Key",
-                value="" if not current_key else current_key,
-                type="password",
-                key=f"{provider_id}_api_key",
-                placeholder=api_key_placeholder,
-                help=f"Get your API key from {provider_info.get('name')} platform",
-            )
+            api_key = None
+            if requires_api_key:
+                api_key_placeholder = "***" * 10 if current_key else "Enter API key"
+                api_key = st.text_input(
+                    f"{provider_name} API Key",
+                    value="" if not current_key else current_key,
+                    type="password",
+                    key=f"{provider_id}_api_key",
+                    placeholder=api_key_placeholder,
+                    help=f"Get your API key from {provider_info.get('name')} platform",
+                )
 
             # Additional fields for specific providers
             extra_fields = {}
 
-            if provider_id == "azure":
+            # Azure OpenAI / Azure AI
+            if provider_id in ["azure_openai", "azure_ai"]:
                 endpoint = st.text_input(
                     "Azure Endpoint",
-                    value=(
-                        CredentialsManager.get_credential(provider_id).get(
-                            "endpoint", ""
-                        )
-                        if is_configured
-                        else ""
-                    ),
+                    value=(current_cred.get("endpoint", "") if current_cred else ""),
                     key=f"{provider_id}_endpoint",
                     placeholder="https://your-resource.openai.azure.com/",
                 )
                 api_version = st.text_input(
                     "API Version",
                     value=(
-                        CredentialsManager.get_credential(provider_id).get(
-                            "api_version", "2024-02-15-preview"
-                        )
-                        if is_configured
+                        current_cred.get("api_version", "2024-02-15-preview")
+                        if current_cred
                         else "2024-02-15-preview"
                     ),
                     key=f"{provider_id}_api_version",
                 )
                 extra_fields = {"endpoint": endpoint, "api_version": api_version}
+
+            # Google Vertex AI / Anthropic Vertex
+            elif provider_id in ["google_vertexai", "google_anthropic_vertex"]:
+                project = st.text_input(
+                    "Google Cloud Project ID",
+                    value=(current_cred.get("project", "") if current_cred else ""),
+                    key=f"{provider_id}_project",
+                    placeholder="my-project-id",
+                )
+                location = st.text_input(
+                    "Location",
+                    value=(
+                        current_cred.get("location", "us-central1")
+                        if current_cred
+                        else "us-central1"
+                    ),
+                    key=f"{provider_id}_location",
+                    placeholder="us-central1",
+                )
+                creds_file = st.text_input(
+                    "Credentials File Path (optional)",
+                    value=(
+                        current_cred.get("credentials_file", "") if current_cred else ""
+                    ),
+                    key=f"{provider_id}_creds_file",
+                    placeholder="/path/to/credentials.json",
+                    help="Path to Google Cloud credentials JSON file",
+                )
+                extra_fields = {"project": project, "location": location}
+                if creds_file:
+                    extra_fields["credentials_file"] = creds_file
+
+            # AWS Bedrock
+            elif provider_id in ["bedrock", "bedrock_converse"]:
+                secret_key = st.text_input(
+                    "AWS Secret Access Key",
+                    value=(current_cred.get("secret_key", "") if current_cred else ""),
+                    type="password",
+                    key=f"{provider_id}_secret_key",
+                    placeholder="Enter AWS secret key",
+                )
+                region = st.text_input(
+                    "AWS Region",
+                    value=(
+                        current_cred.get("region", "us-east-1")
+                        if current_cred
+                        else "us-east-1"
+                    ),
+                    key=f"{provider_id}_region",
+                    placeholder="us-east-1",
+                )
+                extra_fields = {"secret_key": secret_key, "region": region}
+
+            # IBM watsonx
+            elif provider_id == "ibm":
+                url = st.text_input(
+                    "IBM Cloud URL",
+                    value=(current_cred.get("url", "") if current_cred else ""),
+                    key=f"{provider_id}_url",
+                    placeholder="https://us-south.ml.cloud.ibm.com",
+                )
+                project_id = st.text_input(
+                    "Project ID",
+                    value=(current_cred.get("project_id", "") if current_cred else ""),
+                    key=f"{provider_id}_project_id",
+                    placeholder="your-project-id",
+                )
+                extra_fields = {"url": url, "project_id": project_id}
+
+            # Ollama
+            elif provider_id == "ollama":
+                base_url = st.text_input(
+                    "Ollama Base URL",
+                    value=(
+                        current_cred.get("base_url", "http://localhost:11434")
+                        if current_cred
+                        else "http://localhost:11434"
+                    ),
+                    key=f"{provider_id}_base_url",
+                    placeholder="http://localhost:11434",
+                    help="URL where Ollama is running",
+                )
+                extra_fields = {"base_url": base_url}
 
             # Save button
             col1, col2 = st.columns([1, 1])
@@ -190,14 +270,37 @@ class LLMConfigWidget:
                     key=f"{provider_id}_save",
                     use_container_width=True,
                 ):
-                    if api_key:
-                        CredentialsManager.set_credential(
-                            provider_id, api_key, **extra_fields
-                        )
+                    # Validate based on requirements
+                    if requires_api_key and not api_key:
+                        st.error("Please enter an API key")
+                    elif provider_id in [
+                        "google_vertexai",
+                        "google_anthropic_vertex",
+                    ] and not extra_fields.get("project"):
+                        st.error("Please enter Google Cloud Project ID")
+                    elif provider_id in [
+                        "bedrock",
+                        "bedrock_converse",
+                    ] and not extra_fields.get("secret_key"):
+                        st.error("Please enter AWS Secret Access Key")
+                    elif provider_id == "ibm" and (
+                        not extra_fields.get("url")
+                        or not extra_fields.get("project_id")
+                    ):
+                        st.error("Please enter IBM Cloud URL and Project ID")
+                    else:
+                        # Save credentials
+                        if api_key:
+                            CredentialsManager.set_credential(
+                                provider_id, api_key, **extra_fields
+                            )
+                        else:
+                            # For providers without API key (like Ollama)
+                            CredentialsManager.set_credential(
+                                provider_id, "", **extra_fields
+                            )
                         st.success(f"✅ {provider_name} configured!")
                         st.rerun()
-                    else:
-                        st.error("Please enter an API key")
 
             with col2:
                 if is_configured and st.button(

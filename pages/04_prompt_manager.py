@@ -8,6 +8,7 @@ import json
 from typing import Dict, List, Optional
 from pathlib import Path
 from src.utils.session_manager import SessionStateManager
+from src.utils.mongo_utils import PromptManager as MongoPromptManager
 
 # Page configuration
 st.set_page_config(page_title="Prompt Manager", page_icon="📝", layout="wide")
@@ -18,140 +19,153 @@ st.markdown("Create, manage, and organize research prompts for various analysis 
 # Initialize
 SessionStateManager.initialize()
 
-# Comprehensive prompts library from research.py
-DEFAULT_PROMPTS = {
-    "Summary": {
-        "category": "Analysis",
-        "prompt": "Provide a comprehensive summary of this research paper including: 1) Main research question/objective, 2) Key methodology, 3) Major findings, 4) Conclusions and implications. Keep it concise but informative.",
-        "variables": [],
-    },
-    "Key Findings": {
-        "category": "Analysis",
-        "prompt": "Extract and list the key findings from this research paper. For each finding: 1) State the finding clearly, 2) Mention the evidence or data supporting it, 3) Explain its significance.",
-        "variables": [],
-    },
-    "Methodology Review": {
-        "category": "Analysis",
-        "prompt": "Analyze the research methodology used in this paper: 1) What methods were used?, 2) Were they appropriate for the research question?, 3) What are the strengths and limitations?, 4) Could alternative methods have been better?",
-        "variables": [],
-    },
-    "Critical Analysis": {
-        "category": "Analysis",
-        "prompt": "Provide a critical analysis of this research paper covering: 1) Strengths (novelty, rigor, contribution), 2) Weaknesses (limitations, gaps, assumptions), 3) Validity of conclusions, 4) Suggestions for improvement.",
-        "variables": [],
-    },
-    "Literature Review": {
-        "category": "Analysis",
-        "prompt": "Analyze how this paper reviews and positions itself within existing literature: 1) Key papers cited, 2) Research gaps identified, 3) How this work fills those gaps, 4) Missing relevant literature.",
-        "variables": [],
-    },
-    "Research Gap Identification": {
-        "category": "Research Planning",
-        "prompt": "Based on this paper, identify potential research gaps and future research directions: 1) What questions remain unanswered?, 2) What are the stated limitations?, 3) What extensions could be explored?, 4) What new questions arise?",
-        "variables": [],
-    },
-    "Proposal Generation": {
-        "category": "Research Planning",
-        "prompt": "Generate a research proposal based on this paper's findings. Include: 1) Research question, 2) Significance and motivation, 3) Proposed methodology, 4) Expected contributions, 5) Timeline and resources needed.",
-        "variables": ["research_area"],
-    },
-    "Dataset Analysis": {
-        "category": "Technical",
-        "prompt": "Analyze the datasets used in this research: 1) What datasets were used?, 2) Are they appropriate for the task?, 3) Dataset characteristics (size, quality, bias), 4) Data preprocessing steps, 5) Availability and reproducibility.",
-        "variables": [],
-    },
-    "Experimental Design": {
-        "category": "Technical",
-        "prompt": "Evaluate the experimental design: 1) What experiments were conducted?, 2) Control variables and baselines, 3) Evaluation metrics used, 4) Statistical significance, 5) Reproducibility considerations.",
-        "variables": [],
-    },
-    "Results Interpretation": {
-        "category": "Technical",
-        "prompt": "Interpret the results presented in this paper: 1) What do the results show?, 2) Are there unexpected findings?, 3) How do results compare to prior work?, 4) What are alternative interpretations?, 5) Confidence in conclusions.",
-        "variables": [],
-    },
-    "Comparison Study": {
-        "category": "Comparative",
-        "prompt": "Compare this paper with the following reference: {reference}. Include: 1) Similarities in approach, 2) Key differences, 3) Relative strengths and weaknesses, 4) Which is more suitable for {use_case}?",
-        "variables": ["reference", "use_case"],
-    },
-    "Technical Depth": {
-        "category": "Technical",
-        "prompt": "Provide an in-depth technical analysis: 1) Theoretical foundations, 2) Mathematical formulations, 3) Algorithm details, 4) Computational complexity, 5) Implementation considerations.",
-        "variables": [],
-    },
-    "Practical Applications": {
-        "category": "Application",
-        "prompt": "Identify practical applications of this research: 1) Real-world use cases, 2) Industry relevance, 3) Deployment challenges, 4) Scalability considerations, 5) Commercialization potential.",
-        "variables": [],
-    },
-    "Ethical Considerations": {
-        "category": "Ethics",
-        "prompt": "Analyze ethical considerations in this research: 1) Potential ethical concerns, 2) Societal impact, 3) Bias and fairness issues, 4) Privacy considerations, 5) Responsible AI principles.",
-        "variables": [],
-    },
-    "Grant Proposal": {
-        "category": "Research Planning",
-        "prompt": "Draft a grant proposal section based on this paper for {funding_agency}. Include: 1) Project title, 2) Abstract, 3) Significance, 4) Innovation, 5) Approach, 6) Expected outcomes.",
-        "variables": ["funding_agency"],
-    },
-}
-
 
 class PromptManager:
-    """Manage research prompts with CRUD operations"""
+    """Manage research prompts with CRUD operations using MongoDB"""
+
+    _mongo_manager = None
+
+    @staticmethod
+    def get_mongo_manager():
+        """Get or create MongoDB manager instance"""
+        if PromptManager._mongo_manager is None:
+            try:
+                PromptManager._mongo_manager = MongoPromptManager()
+            except Exception as e:
+                st.error(f"Failed to connect to MongoDB: {str(e)}")
+                st.info(
+                    "Please ensure MongoDB is running and MONGODB_URI is set in your environment."
+                )
+                return None
+        return PromptManager._mongo_manager
 
     @staticmethod
     def initialize_prompts():
-        """Initialize prompts in session state"""
-        if "prompts" not in st.session_state:
-            st.session_state["prompts"] = DEFAULT_PROMPTS.copy()
+        """Initialize prompts - check database connection"""
+        manager = PromptManager.get_mongo_manager()
+        if manager is None:
+            return
+
+        # Just verify connection is working
+        try:
+            manager.get_all_prompts()
+        except Exception as e:
+            st.error(f"Error accessing prompts database: {str(e)}")
 
     @staticmethod
     def get_all_prompts() -> Dict:
-        """Get all prompts"""
-        PromptManager.initialize_prompts()
-        return st.session_state["prompts"]
+        """Get all prompts from MongoDB"""
+        manager = PromptManager.get_mongo_manager()
+        if manager is None:
+            return {}
+
+        prompts = manager.get_all_prompts()
+        # Transform to match expected format
+        result = {}
+        for prompt in prompts:
+            result[prompt["title"]] = {
+                "category": prompt.get("category", "general"),
+                "description": prompt.get("description", ""),
+                "prompt": prompt.get("value", ""),
+                "variables": prompt.get("tags", []),
+            }
+        return result
 
     @staticmethod
     def get_prompt(name: str) -> Optional[Dict]:
         """Get a specific prompt"""
-        prompts = PromptManager.get_all_prompts()
-        return prompts.get(name)
+        manager = PromptManager.get_mongo_manager()
+        if manager is None:
+            return None
 
-    @staticmethod
-    def add_prompt(name: str, category: str, prompt: str, variables: List[str]):
-        """Add a new prompt"""
-        prompts = PromptManager.get_all_prompts()
-        prompts[name] = {"category": category, "prompt": prompt, "variables": variables}
-        st.session_state["prompts"] = prompts
-
-    @staticmethod
-    def update_prompt(name: str, category: str, prompt: str, variables: List[str]):
-        """Update an existing prompt"""
-        prompts = PromptManager.get_all_prompts()
-        if name in prompts:
-            prompts[name] = {
-                "category": category,
-                "prompt": prompt,
-                "variables": variables,
+        prompt = manager.get_prompt_by_title(name)
+        if prompt:
+            return {
+                "category": prompt.get("category", "general"),
+                "description": prompt.get("description", ""),
+                "prompt": prompt.get("value", ""),
+                "variables": prompt.get("tags", []),
             }
-            st.session_state["prompts"] = prompts
+        return None
+
+    @staticmethod
+    def add_prompt(
+        name: str,
+        category: str,
+        prompt: str,
+        variables: List[str],
+        description: str = "",
+    ):
+        """Add a new prompt"""
+        manager = PromptManager.get_mongo_manager()
+        if manager is None:
+            return {"success": False, "message": "MongoDB connection failed"}
+
+        return manager.add_prompt(
+            title=name,
+            value=prompt,
+            category=category,
+            description=description,
+            tags=variables,
+        )
+
+    @staticmethod
+    def update_prompt(
+        name: str,
+        category: str,
+        prompt: str,
+        variables: List[str],
+        description: str = "",
+    ):
+        """Update an existing prompt"""
+        manager = PromptManager.get_mongo_manager()
+        if manager is None:
+            return {"success": False, "message": "MongoDB connection failed"}
+
+        updates = {
+            "value": prompt,
+            "category": category,
+            "description": description,
+            "tags": variables,
+        }
+        return manager.update_prompt(name, updates)
 
     @staticmethod
     def delete_prompt(name: str):
         """Delete a prompt"""
-        prompts = PromptManager.get_all_prompts()
-        if name in prompts:
-            del prompts[name]
-            st.session_state["prompts"] = prompts
+        manager = PromptManager.get_mongo_manager()
+        if manager is None:
+            return {"success": False, "message": "MongoDB connection failed"}
+
+        return manager.delete_prompt(name)
 
     @staticmethod
     def get_categories() -> List[str]:
         """Get all unique categories"""
-        prompts = PromptManager.get_all_prompts()
-        categories = set(p["category"] for p in prompts.values())
-        return sorted(list(categories))
+        manager = PromptManager.get_mongo_manager()
+        if manager is None:
+            return []
+
+        return manager.get_all_categories()
+
+    @staticmethod
+    def search_prompts(search_term: str) -> Dict:
+        """Search prompts by term"""
+        manager = PromptManager.get_mongo_manager()
+        if manager is None:
+            return {}
+
+        prompts = manager.search_prompts(search_term)
+        # Transform to match expected format
+        result = {}
+        for prompt in prompts:
+            result[prompt["title"]] = {
+                "category": prompt.get("category", "general"),
+                "description": prompt.get("description", ""),
+                "prompt": prompt.get("value", ""),
+                "variables": prompt.get("tags", []),
+            }
+        return result
 
     @staticmethod
     def export_prompts() -> str:
@@ -163,11 +177,45 @@ class PromptManager:
     def import_prompts(prompts_json: str):
         """Import prompts from JSON"""
         try:
+            manager = PromptManager.get_mongo_manager()
+            if manager is None:
+                return False, "MongoDB connection failed"
+
             prompts = json.loads(prompts_json)
-            st.session_state["prompts"] = prompts
-            return True, "Prompts imported successfully!"
+
+            # Import each prompt
+            success_count = 0
+            for name, data in prompts.items():
+                result = manager.add_prompt(
+                    title=name,
+                    value=data.get("prompt", data.get("value", "")),
+                    category=data.get("category", "general"),
+                    description=data.get("description", ""),
+                    tags=data.get("variables", data.get("tags", [])),
+                )
+                if result.get("success"):
+                    success_count += 1
+
+            return True, f"Successfully imported {success_count} prompts!"
         except Exception as e:
             return False, f"Error importing prompts: {str(e)}"
+
+    @staticmethod
+    def delete_all_prompts():
+        """Delete all prompts from database"""
+        manager = PromptManager.get_mongo_manager()
+        if manager is None:
+            return False, "MongoDB connection failed"
+
+        try:
+            # Delete all existing prompts
+            all_prompts = manager.get_all_prompts()
+            for prompt in all_prompts:
+                manager.delete_prompt(prompt["title"])
+
+            return True, f"Deleted all {len(all_prompts)} prompts!"
+        except Exception as e:
+            return False, f"Error deleting prompts: {str(e)}"
 
 
 # Initialize prompts
@@ -216,16 +264,19 @@ with st.sidebar:
 
     st.divider()
 
-    # Reset
-    if st.button("🔄 Reset to Defaults", use_container_width=True):
-        if st.session_state.get("confirm_reset"):
-            st.session_state["prompts"] = DEFAULT_PROMPTS.copy()
-            st.session_state["confirm_reset"] = False
-            st.success("Prompts reset to defaults!")
-            st.rerun()
+    # Delete All
+    if st.button("�️ Delete All Prompts", use_container_width=True):
+        if st.session_state.get("confirm_delete_all"):
+            success, message = PromptManager.delete_all_prompts()
+            st.session_state["confirm_delete_all"] = False
+            if success:
+                st.success(message)
+                st.rerun()
+            else:
+                st.error(message)
         else:
-            st.session_state["confirm_reset"] = True
-            st.warning("Click again to confirm reset")
+            st.session_state["confirm_delete_all"] = True
+            st.warning("⚠️ Click again to confirm deletion of ALL prompts")
 
 # Main content
 tab1, tab2, tab3 = st.tabs(["📚 Browse Prompts", "➕ Add New", "📊 Statistics"])
@@ -238,22 +289,23 @@ with tab1:
 
     # Apply filters
     filtered_prompts = {}
-    for name, data in all_prompts.items():
-        # Category filter
-        if selected_category != "All" and data["category"] != selected_category:
-            continue
 
-        # Search filter
-        if search_query:
-            search_lower = search_query.lower()
-            if (
-                search_lower not in name.lower()
-                and search_lower not in data["prompt"].lower()
-                and search_lower not in data["category"].lower()
-            ):
+    # If search is active, use search_prompts method
+    if search_query:
+        filtered_prompts = PromptManager.search_prompts(search_query)
+        # Apply category filter to search results
+        if selected_category != "All":
+            filtered_prompts = {
+                name: data
+                for name, data in filtered_prompts.items()
+                if data["category"] == selected_category
+            }
+    else:
+        # Apply category filter only
+        for name, data in all_prompts.items():
+            if selected_category != "All" and data["category"] != selected_category:
                 continue
-
-        filtered_prompts[name] = data
+            filtered_prompts[name] = data
 
     if not filtered_prompts:
         st.info("No prompts found matching your filters.")
@@ -263,6 +315,11 @@ with tab1:
         # Display prompts
         for name, data in filtered_prompts.items():
             with st.expander(f"**{name}** - {data['category']}", expanded=False):
+                # Description
+                if data.get("description"):
+                    st.markdown(f"*{data['description']}*")
+                    st.divider()
+
                 # Display prompt
                 st.markdown("**Prompt:**")
                 st.code(data["prompt"], language=None)
@@ -287,9 +344,12 @@ with tab1:
 
                 with col3:
                     if st.button("🗑️ Delete", key=f"delete_{name}"):
-                        PromptManager.delete_prompt(name)
-                        st.success(f"Deleted '{name}'")
-                        st.rerun()
+                        result = PromptManager.delete_prompt(name)
+                        if result.get("success"):
+                            st.success(f"Deleted '{name}'")
+                            st.rerun()
+                        else:
+                            st.error(result.get("message", "Failed to delete"))
 
 with tab2:
     st.subheader("➕ Add New Prompt")
@@ -300,13 +360,20 @@ with tab2:
     if editing:
         st.info(f"✏️ Editing: **{editing}**")
         prompt_data = PromptManager.get_prompt(editing)
-        default_name = editing
-        default_category = prompt_data["category"]
-        default_prompt = prompt_data["prompt"]
-        default_variables = ", ".join(prompt_data["variables"])
+        if prompt_data:
+            default_name = editing
+            default_category = prompt_data["category"]
+            default_description = prompt_data.get("description", "")
+            default_prompt = prompt_data["prompt"]
+            default_variables = ", ".join(prompt_data["variables"])
+        else:
+            st.error(f"Prompt '{editing}' not found")
+            st.session_state["edit_prompt"] = None
+            st.rerun()
     else:
         default_name = ""
         default_category = "Analysis"
+        default_description = ""
         default_prompt = ""
         default_variables = ""
 
@@ -336,6 +403,15 @@ with tab2:
             category = st.text_input("New Category Name", placeholder="e.g., Ethics")
         else:
             category = category_select
+
+        # Description
+        description = st.text_area(
+            "Description",
+            value=default_description,
+            height=100,
+            placeholder="Brief description of what this prompt does",
+            help="Optional description to help understand the purpose of this prompt",
+        )
 
         # Prompt text
         prompt_text = st.text_area(
@@ -377,23 +453,24 @@ with tab2:
 
                 # Add or update
                 if editing:
-                    PromptManager.update_prompt(
-                        prompt_name, category, prompt_text, variables
+                    result = PromptManager.update_prompt(
+                        prompt_name, category, prompt_text, variables, description
                     )
-                    st.success(f"✅ Updated '{prompt_name}'")
-                    st.session_state["edit_prompt"] = None
-                else:
-                    if prompt_name in PromptManager.get_all_prompts():
-                        st.error(
-                            f"Prompt '{prompt_name}' already exists. Use a different name or edit the existing one."
-                        )
+                    if result.get("success"):
+                        st.success(f"✅ Updated '{prompt_name}'")
+                        st.session_state["edit_prompt"] = None
+                        st.rerun()
                     else:
-                        PromptManager.add_prompt(
-                            prompt_name, category, prompt_text, variables
-                        )
+                        st.error(result.get("message", "Failed to update"))
+                else:
+                    result = PromptManager.add_prompt(
+                        prompt_name, category, prompt_text, variables, description
+                    )
+                    if result.get("success"):
                         st.success(f"✅ Added '{prompt_name}'")
-
-                st.rerun()
+                        st.rerun()
+                    else:
+                        st.error(result.get("message", "Failed to add prompt"))
 
 with tab3:
     st.subheader("📊 Prompt Statistics")
@@ -455,5 +532,7 @@ st.markdown(
 - **Categories**: Organize prompts by purpose (Analysis, Technical, Ethics, etc.)
 - **Export**: Backup your prompts regularly or share with colleagues
 - **Search**: Use keywords to quickly find relevant prompts
+- **MongoDB**: All prompts are stored in MongoDB for persistence across sessions
+- **Descriptions**: Add helpful descriptions to make prompts easier to understand
 """
 )
