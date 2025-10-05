@@ -14,9 +14,6 @@ except ImportError:
     st.error("⚠️ Research app dependencies not installed. Please run: pip install -r requirements.txt")
     st.stop()
 
-st.title("🤖 RAG Chat System")
-st.markdown("Ask questions about your research documents using AI-powered retrieval")
-
 # Initialize session state
 if "rag_retriever" not in st.session_state:
     st.session_state.rag_retriever = None

@@ -4,9 +4,6 @@ import streamlit as st
 import os
 from pathlib import Path
 
-st.title("⚙️ Settings")
-st.markdown("Configure your research application settings and API keys")
-
 # API Keys section
 st.header("🔑 API Configuration")
 

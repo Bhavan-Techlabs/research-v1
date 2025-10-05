@@ -15,9 +15,6 @@ except ImportError:
     st.error("⚠️ Research app dependencies not installed. Please run: pip install -r requirements.txt")
     st.stop()
 
-st.title("🔍 Research Assistant")
-st.markdown("Search for research papers across multiple sources")
-
 # Initialize session state
 if "research_results" not in st.session_state:
     st.session_state.research_results = None

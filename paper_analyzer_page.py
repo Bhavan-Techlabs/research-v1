@@ -17,9 +17,6 @@ except ImportError:
     st.error("⚠️ Research app dependencies not installed. Please run: pip install -r requirements.txt")
     st.stop()
 
-st.title("📄 Paper Analyzer")
-st.markdown("Upload and analyze research papers with AI assistance")
-
 # Initialize session state
 if "analysis_results" not in st.session_state:
     st.session_state.analysis_results = None
