@@ -53,7 +53,7 @@ if st.session_state.get("authentication_status"):
         st.markdown("---")
 
     # Load navigation
-    nav = get_nav_from_toml(".streamlit/pages_sections.toml")
+    nav = get_nav_from_toml(".streamlit/pages_sections_v2.toml")
     pg = st.navigation(nav)
     add_page_title(pg)
     pg.run()
