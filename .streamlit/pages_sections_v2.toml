@@ -1,0 +1,39 @@
+[[pages]]
+path = "pages/00_home.py"
+name = "Home"
+icon = "🏠"
+
+[[pages]]
+name = "Research Tools"
+icon = "🔬"
+is_section = true
+
+[[pages]]
+path = "pages/01_research_assistant.py"
+name = "Research Assistant"
+icon = "🔍"
+
+[[pages]]
+path = "pages/02_paper_analyzer.py"
+name = "Paper Analyzer"
+icon = "📄"
+
+[[pages]]
+path = "pages/03_rag_chat.py"
+name = "RAG Chat System"
+icon = "💬"
+
+[[pages]]
+path = "pages/04_prompt_manager.py"
+name = "Prompt Manager"
+icon = "📝"
+
+[[pages]]
+name = "Configuration"
+icon = "⚙️"
+is_section = true
+
+[[pages]]
+path = "pages/05_settings.py"
+name = "Settings"
+icon = "🔧"
