@@ -8,7 +8,7 @@ import json
 from typing import Dict, List, Optional
 from pathlib import Path
 from src.utils.session_manager import SessionStateManager
-from src.utils.mongo_utils import PromptManager as MongoPromptManager
+from src.utils.prompt_manager import PromptManager as MongoPromptManager
 
 # Page configuration
 st.markdown("Create, manage, and organize research prompts for various analysis tasks")
@@ -47,7 +47,141 @@ class PromptManager:
         try:
             manager.get_all_prompts()
         except Exception as e:
-            st.error(f"Error accessing prompts database: {str(e)}")
+            st.error(f"Error reading file: {str(e)}")
+
+
+# Try Prompt Modal Dialog
+if st.session_state.get("try_prompt"):
+    prompt_name = st.session_state["try_prompt"]
+    prompt_data = st.session_state.get("try_prompt_data")
+
+    @st.dialog(f"🚀 Try Prompt: {prompt_name}", width="large")
+    def show_try_prompt_dialog():
+        from src.services.llm_manager import get_llm_manager
+        from src.utils.credentials_manager import CredentialsManager
+
+        st.markdown(f"**Category:** {prompt_data['category']}")
+        if prompt_data.get("description"):
+            st.markdown(f"*{prompt_data['description']}*")
+
+        st.divider()
+
+        # Show original prompt template
+        with st.expander("View Prompt Template"):
+            st.code(prompt_data["prompt"], language=None)
+
+        # Variable inputs
+        variable_values = {}
+        if prompt_data["variables"]:
+            st.subheader("📝 Fill in Variables")
+            for var in prompt_data["variables"]:
+                variable_values[var] = st.text_input(
+                    f"{var}:",
+                    key=f"var_{var}",
+                    placeholder=f"Enter value for {var}",
+                    help=f"This value will replace {{{var}}} in the prompt",
+                )
+
+        st.divider()
+
+        # LLM Configuration
+        st.subheader("🤖 LLM Configuration")
+
+        llm_manager = get_llm_manager()
+        configured_providers = CredentialsManager.get_configured_providers()
+
+        if not configured_providers:
+            st.warning(
+                "⚠️ No LLM providers configured. Please configure at least one provider in Settings."
+            )
+            if st.button("Go to Settings"):
+                st.session_state["try_prompt"] = None
+                st.switch_page("pages/05_settings.py")
+            return
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # Provider selection
+            provider_names = {
+                p: llm_manager.get_provider_info(p).get("name", p)
+                for p in configured_providers
+            }
+            selected_provider = st.selectbox(
+                "Provider",
+                options=configured_providers,
+                format_func=lambda x: provider_names.get(x, x),
+            )
+
+        with col2:
+            # Model selection
+            if selected_provider:
+                available_models = llm_manager.get_available_models(selected_provider)
+                if available_models and available_models != ["custom"]:
+                    selected_model = st.selectbox("Model", options=available_models)
+                else:
+                    selected_model = st.text_input(
+                        "Model Name",
+                        placeholder="Enter model name",
+                    )
+
+        # Advanced settings
+        with st.expander("⚙️ Advanced Settings"):
+            temperature = st.slider("Temperature", 0.0, 2.0, 0.7, 0.1)
+            max_tokens = st.number_input("Max Tokens", 100, 4000, 1000, 100)
+
+        st.divider()
+
+        # Generate button
+        if st.button("✨ Generate Response", type="primary", use_container_width=True):
+            # Validate variables
+            if prompt_data["variables"]:
+                missing_vars = [
+                    v for v in prompt_data["variables"] if not variable_values.get(v)
+                ]
+                if missing_vars:
+                    st.error(f"Please fill in all variables: {', '.join(missing_vars)}")
+                    return
+
+            # Replace variables in prompt
+            final_prompt = prompt_data["prompt"]
+            for var, value in variable_values.items():
+                final_prompt = final_prompt.replace(f"{{{var}}}", value)
+
+            # Show final prompt
+            with st.expander("📄 Final Prompt Sent to LLM"):
+                st.code(final_prompt, language=None)
+
+            # Initialize LLM and generate
+            try:
+                with st.spinner(
+                    f"Generating response using {provider_names.get(selected_provider)}..."
+                ):
+                    llm = llm_manager.initialize_model(
+                        provider=selected_provider,
+                        model=selected_model,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                    )
+
+                    response = llm.invoke(final_prompt)
+
+                    st.success("✅ Response generated!")
+                    st.markdown("### 🤖 LLM Response")
+                    st.markdown(response.content)
+
+            except Exception as e:
+                st.error(f"Error generating response: {str(e)}")
+
+        # Close button
+        if st.button("Close", use_container_width=True):
+            st.session_state["try_prompt"] = None
+            st.session_state["try_prompt_data"] = None
+            st.rerun()
+
+    show_try_prompt_dialog()
+
+    # Main content
 
     @staticmethod
     def get_all_prompts() -> Dict:
@@ -64,7 +198,8 @@ class PromptManager:
                 "category": prompt.get("category", "general"),
                 "description": prompt.get("description", ""),
                 "prompt": prompt.get("value", ""),
-                "variables": prompt.get("tags", []),
+                "variables": prompt.get("variables", []),
+                "tags": prompt.get("tags", []),
             }
         return result
 
@@ -81,7 +216,8 @@ class PromptManager:
                 "category": prompt.get("category", "general"),
                 "description": prompt.get("description", ""),
                 "prompt": prompt.get("value", ""),
-                "variables": prompt.get("tags", []),
+                "variables": prompt.get("variables", []),
+                "tags": prompt.get("tags", []),
             }
         return None
 
@@ -92,6 +228,7 @@ class PromptManager:
         prompt: str,
         variables: List[str],
         description: str = "",
+        tags: List[str] = None,
     ):
         """Add a new prompt"""
         manager = PromptManager.get_mongo_manager()
@@ -103,7 +240,8 @@ class PromptManager:
             value=prompt,
             category=category,
             description=description,
-            tags=variables,
+            variables=variables,
+            tags=tags or [],
         )
 
     @staticmethod
@@ -113,6 +251,7 @@ class PromptManager:
         prompt: str,
         variables: List[str],
         description: str = "",
+        tags: List[str] = None,
     ):
         """Update an existing prompt"""
         manager = PromptManager.get_mongo_manager()
@@ -123,7 +262,8 @@ class PromptManager:
             "value": prompt,
             "category": category,
             "description": description,
-            "tags": variables,
+            "variables": variables,
+            "tags": tags or [],
         }
         return manager.update_prompt(name, updates)
 
@@ -160,7 +300,8 @@ class PromptManager:
                 "category": prompt.get("category", "general"),
                 "description": prompt.get("description", ""),
                 "prompt": prompt.get("value", ""),
-                "variables": prompt.get("tags", []),
+                "variables": prompt.get("variables", []),
+                "tags": prompt.get("tags", []),
             }
         return result
 
@@ -188,7 +329,8 @@ class PromptManager:
                     value=data.get("prompt", data.get("value", "")),
                     category=data.get("category", "general"),
                     description=data.get("description", ""),
-                    tags=data.get("variables", data.get("tags", [])),
+                    variables=data.get("variables", []),
+                    tags=data.get("tags", []),
                 )
                 if result.get("success"):
                     success_count += 1
@@ -326,27 +468,28 @@ with tab1:
                     st.markdown("**Variables:**")
                     st.write(", ".join([f"`{{{v}}}`" for v in data["variables"]]))
 
-                # Actions
-                col1, col2, col3 = st.columns(3)
+                # Tags (for filtering)
+                if data.get("tags"):
+                    st.markdown("**Tags:**")
+                    st.write(", ".join([f"`{t}`" for t in data["tags"]]))
+
+                # Actions - aligned to left
+                col1, col2 = st.columns([1, 1])
 
                 with col1:
-                    if st.button("📋 Copy", key=f"copy_{name}"):
-                        st.code(data["prompt"], language=None)
-                        st.success("Prompt displayed above!")
-
-                with col2:
-                    if st.button("✏️ Edit", key=f"edit_{name}"):
-                        st.session_state["edit_prompt"] = name
+                    if st.button(
+                        "🚀 Try Prompt", key=f"try_{name}", use_container_width=True
+                    ):
+                        st.session_state["try_prompt"] = name
+                        st.session_state["try_prompt_data"] = data
                         st.rerun()
 
-                with col3:
-                    if st.button("🗑️ Delete", key=f"delete_{name}"):
-                        result = PromptManager.delete_prompt(name)
-                        if result.get("success"):
-                            st.success(f"Deleted '{name}'")
-                            st.rerun()
-                        else:
-                            st.error(result.get("message", "Failed to delete"))
+                with col2:
+                    if st.button(
+                        "✏️ Edit", key=f"edit_{name}", use_container_width=True
+                    ):
+                        st.session_state["edit_prompt"] = name
+                        st.rerun()
 
 with tab2:
     st.subheader("➕ Add New Prompt")
@@ -363,6 +506,7 @@ with tab2:
             default_description = prompt_data.get("description", "")
             default_prompt = prompt_data["prompt"]
             default_variables = ", ".join(prompt_data["variables"])
+            default_tags = ", ".join(prompt_data.get("tags", []))
         else:
             st.error(f"Prompt '{editing}' not found")
             st.session_state["edit_prompt"] = None
@@ -373,6 +517,7 @@ with tab2:
         default_description = ""
         default_prompt = ""
         default_variables = ""
+        default_tags = ""
 
     with st.form("prompt_form"):
         # Prompt name
@@ -421,10 +566,18 @@ with tab2:
 
         # Variables
         variables_input = st.text_input(
-            "Variables (comma-separated)",
+            "Variables (comma-separated) *",
             value=default_variables,
             placeholder="e.g., research_area, use_case",
-            help="List variable names that appear in {curly braces} in the prompt",
+            help="List variable names that appear in {curly braces} in the prompt. These will be replaced at runtime.",
+        )
+
+        # Tags
+        tags_input = st.text_input(
+            "Tags (comma-separated)",
+            value=default_tags,
+            placeholder="e.g., research, analysis, paper",
+            help="Optional tags for filtering and organizing prompts",
         )
 
         # Submit
@@ -445,13 +598,14 @@ with tab2:
             if not prompt_name or not category or not prompt_text:
                 st.error("Please fill in all required fields (*)")
             else:
-                # Parse variables
+                # Parse variables and tags
                 variables = [v.strip() for v in variables_input.split(",") if v.strip()]
+                tags = [t.strip() for t in tags_input.split(",") if t.strip()]
 
                 # Add or update
                 if editing:
                     result = PromptManager.update_prompt(
-                        prompt_name, category, prompt_text, variables, description
+                        prompt_name, category, prompt_text, variables, description, tags
                     )
                     if result.get("success"):
                         st.success(f"✅ Updated '{prompt_name}'")
@@ -461,7 +615,7 @@ with tab2:
                         st.error(result.get("message", "Failed to update"))
                 else:
                     result = PromptManager.add_prompt(
-                        prompt_name, category, prompt_text, variables, description
+                        prompt_name, category, prompt_text, variables, description, tags
                     )
                     if result.get("success"):
                         st.success(f"✅ Added '{prompt_name}'")
@@ -525,11 +679,12 @@ st.divider()
 st.markdown(
     """
 ### 💡 Tips
-- **Variables**: Use `{variable_name}` syntax in prompts for customizable fields
+- **Try Prompt**: Click 🚀 Try Prompt to test prompts with your configured LLM
+- **Variables**: Use `{variable_name}` syntax in prompts for runtime replacement
+- **Tags**: Use tags for filtering and organizing prompts (separate from variables)
 - **Categories**: Organize prompts by purpose (Analysis, Technical, Ethics, etc.)
 - **Export**: Backup your prompts regularly or share with colleagues
-- **Search**: Use keywords to quickly find relevant prompts
+- **Search**: Use keywords to quickly find relevant prompts across title, description, and tags
 - **MongoDB**: All prompts are stored in MongoDB for persistence across sessions
-- **Descriptions**: Add helpful descriptions to make prompts easier to understand
 """
 )

@@ -9,14 +9,20 @@ from pymongo.errors import DuplicateKeyError
 from .mongo_manager import MongoDBManager
 
 
-
 class PromptManager(MongoDBManager):
     """
     MongoDB-based prompt management system for research prompts.
     Inherits from generic MongoDBManager.
     """
-    def __init__(self, mongodb_uri: str = None, database_name: str = "research_assistant"):
-        super().__init__(collection_name="prompts", mongodb_uri=mongodb_uri, database_name=database_name)
+
+    def __init__(
+        self, mongodb_uri: str = None, database_name: str = "research_assistant"
+    ):
+        super().__init__(
+            collection_name="prompts",
+            mongodb_uri=mongodb_uri,
+            database_name=database_name,
+        )
 
     def add_prompt(
         self,
@@ -24,6 +30,7 @@ class PromptManager(MongoDBManager):
         value: str,
         category: str = "general",
         description: str = "",
+        variables: list = None,
         tags: list = None,
     ) -> dict:
         """
@@ -34,11 +41,14 @@ class PromptManager(MongoDBManager):
             value: Prompt text/template
             category: Category of the prompt
             description: Description of what the prompt does
-            tags: List of tags for the prompt
+            variables: List of variable names used in the prompt (for replacement)
+            tags: List of tags for the prompt (for filtering)
 
         Returns:
             Dictionary with insertion result
         """
+        if variables is None:
+            variables = []
         if tags is None:
             tags = []
 
@@ -47,7 +57,8 @@ class PromptManager(MongoDBManager):
             "value": value,
             "category": category,
             "description": description,
-            "tags": tags or [],
+            "variables": variables,
+            "tags": tags,
         }
         try:
             result = self.insert_one(prompt_doc)
@@ -190,45 +201,3 @@ class PromptManager(MongoDBManager):
             return {"success": False, "message": f"Error during bulk insert: {str(e)}"}
 
     # close() is inherited from MongoDBManager
-
-
-def migrate_prompts_from_list(prompts_list: List[Dict], mongodb_uri: str = None):
-    """
-    Helper function to migrate prompts from a Python list to MongoDB
-
-    Args:
-        prompts_list: List of prompt dictionaries from research.py
-        mongodb_uri: MongoDB connection URI
-    """
-    manager = PromptManager(mongodb_uri=mongodb_uri)
-
-    # Transform prompts to match MongoDB schema
-    transformed_prompts = []
-    for prompt in prompts_list:
-        # Determine category from title
-        category = "general"
-        if "[LONG]" in prompt["title"]:
-            category = "evaluation"
-        elif "Research" in prompt["title"]:
-            category = "research"
-        elif "Paper" in prompt["title"]:
-            category = "paper_analysis"
-        elif any(
-            word in prompt["title"]
-            for word in ["Text", "Grammar", "Paraphrase", "Formal"]
-        ):
-            category = "writing"
-
-        transformed_prompts.append(
-            {
-                "title": prompt["title"].replace("[LONG] ", ""),
-                "value": prompt["value"],
-                "category": category,
-                "description": "",
-                "tags": [],
-            }
-        )
-
-    result = manager.bulk_add_prompts(transformed_prompts)
-    print(f"Migration result: {result}")
-    manager.close()
