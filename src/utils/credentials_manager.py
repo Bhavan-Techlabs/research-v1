@@ -320,12 +320,21 @@ class LLMConfigWidget:
     @staticmethod
     def render_all_providers():
         """Render configuration UI for all providers"""
-        from src.services.llm_manager import LLMManager
+        from src.services.llm_manager import get_llm_manager
+
+        llm_manager = get_llm_manager()
 
         st.subheader("🔑 LLM Provider Configuration")
         st.markdown("Configure your API keys for different LLM providers:")
 
-        for provider_info in LLMManager.get_all_providers():
+        # Get all providers from the manager (now loaded from MongoDB)
+        all_providers = llm_manager.get_all_providers()
+
+        if not all_providers:
+            st.warning("⚠️ No LLM providers available. Please check MongoDB connection.")
+            return
+
+        for provider_info in all_providers:
             provider_id = provider_info["id"]
             LLMConfigWidget.render_provider_config(provider_id, provider_info)
 

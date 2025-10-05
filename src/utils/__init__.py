@@ -5,6 +5,7 @@ from .token_utils import TokenManager
 from .session_manager import SessionStateManager
 from .prompt_manager import PromptManager
 from .mongo_manager import MongoDBManager
+from .model_manager import ModelManager
 
 __all__ = [
     "DocumentProcessor",
@@ -12,4 +13,5 @@ __all__ = [
     "SessionStateManager",
     "PromptManager",
     "MongoDBManager",
+    "ModelManager",
 ]

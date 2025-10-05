@@ -2,6 +2,7 @@
 LLM Manager Service
 Supports multiple LLM providers using langchain's init_chat_model
 Handles dynamic API key management and provider selection
+Loads provider configurations from MongoDB
 """
 
 import os
@@ -9,202 +10,102 @@ from typing import Optional, Dict, Any, List
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain.chat_models import init_chat_model
 from config.settings import Settings
+from src.utils.model_manager import ModelManager
 
 
 class LLMManager:
     """
     Manages multiple LLM providers with dynamic configuration
     Supports: OpenAI, Anthropic, Google, Azure, Cohere, and more
+    Loads provider configurations from MongoDB
     """
 
-    # Supported providers and their configuration
-    SUPPORTED_PROVIDERS = {
+    # Fallback providers in case MongoDB is not available
+    FALLBACK_PROVIDERS = {
         "openai": {
             "name": "OpenAI",
             "api_key_env": "OPENAI_API_KEY",
             "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
             "requires_api_key": True,
         },
-        "anthropic": {
-            "name": "Anthropic",
-            "api_key_env": "ANTHROPIC_API_KEY",
-            "models": [
-                "claude-3-5-sonnet-20241022",
-                "claude-3-opus-20240229",
-                "claude-3-sonnet-20240229",
-                "claude-3-haiku-20240307",
-            ],
-            "requires_api_key": True,
-        },
-        "azure_openai": {
-            "name": "Azure OpenAI",
-            "api_key_env": "AZURE_OPENAI_API_KEY",
-            "models": ["custom"],  # User-defined deployment names
-            "requires_api_key": True,
-            "requires_endpoint": True,
-            "extra_env": ["AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_VERSION"],
-        },
-        "azure_ai": {
-            "name": "Azure AI",
-            "api_key_env": "AZURE_AI_API_KEY",
-            "models": ["custom"],
-            "requires_api_key": True,
-            "requires_endpoint": True,
-        },
-        "google_vertexai": {
-            "name": "Google Vertex AI",
-            "api_key_env": "GOOGLE_APPLICATION_CREDENTIALS",
-            "models": ["gemini-1.5-pro", "gemini-1.5-flash", "text-bison@002"],
-            "requires_api_key": False,
-            "requires_project": True,
-            "extra_env": ["GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_LOCATION"],
-        },
-        "google_genai": {
-            "name": "Google Gemini",
-            "api_key_env": "GOOGLE_API_KEY",
-            "models": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"],
-            "requires_api_key": True,
-        },
-        "google_anthropic_vertex": {
-            "name": "Anthropic via Google Vertex AI",
-            "api_key_env": "GOOGLE_APPLICATION_CREDENTIALS",
-            "models": [
-                "claude-3-5-sonnet@20240620",
-                "claude-3-opus@20240229",
-                "claude-3-haiku@20240307",
-            ],
-            "requires_api_key": False,
-            "requires_project": True,
-        },
-        "bedrock": {
-            "name": "AWS Bedrock",
-            "api_key_env": "AWS_ACCESS_KEY_ID",
-            "models": [
-                "anthropic.claude-3-5-sonnet-20241022-v2:0",
-                "anthropic.claude-3-sonnet-20240229-v1:0",
-                "meta.llama3-70b-instruct-v1:0",
-                "mistral.mistral-large-2402-v1:0",
-            ],
-            "requires_api_key": True,
-            "extra_env": ["AWS_SECRET_ACCESS_KEY", "AWS_REGION"],
-        },
-        "bedrock_converse": {
-            "name": "AWS Bedrock Converse",
-            "api_key_env": "AWS_ACCESS_KEY_ID",
-            "models": [
-                "anthropic.claude-3-5-sonnet-20241022-v2:0",
-                "anthropic.claude-3-sonnet-20240229-v1:0",
-            ],
-            "requires_api_key": True,
-            "extra_env": ["AWS_SECRET_ACCESS_KEY", "AWS_REGION"],
-        },
-        "cohere": {
-            "name": "Cohere",
-            "api_key_env": "COHERE_API_KEY",
-            "models": ["command-r-plus", "command-r", "command"],
-            "requires_api_key": True,
-        },
-        "fireworks": {
-            "name": "Fireworks AI",
-            "api_key_env": "FIREWORKS_API_KEY",
-            "models": [
-                "accounts/fireworks/models/llama-v3p1-70b-instruct",
-                "accounts/fireworks/models/mixtral-8x7b-instruct",
-            ],
-            "requires_api_key": True,
-        },
-        "together": {
-            "name": "Together AI",
-            "api_key_env": "TOGETHER_API_KEY",
-            "models": [
-                "meta-llama/Llama-3-70b-chat-hf",
-                "mistralai/Mixtral-8x7B-Instruct-v0.1",
-            ],
-            "requires_api_key": True,
-        },
-        "mistralai": {
-            "name": "Mistral AI",
-            "api_key_env": "MISTRAL_API_KEY",
-            "models": [
-                "mistral-large-latest",
-                "mistral-medium-latest",
-                "mistral-small-latest",
-            ],
-            "requires_api_key": True,
-        },
-        "huggingface": {
-            "name": "HuggingFace",
-            "api_key_env": "HUGGINGFACEHUB_API_TOKEN",
-            "models": [
-                "HuggingFaceH4/zephyr-7b-beta",
-                "mistralai/Mixtral-8x7B-Instruct-v0.1",
-            ],
-            "requires_api_key": True,
-        },
-        "groq": {
-            "name": "Groq",
-            "api_key_env": "GROQ_API_KEY",
-            "models": [
-                "llama-3.1-70b-versatile",
-                "llama3-70b-8192",
-                "mixtral-8x7b-32768",
-            ],
-            "requires_api_key": True,
-        },
-        "ollama": {
-            "name": "Ollama",
-            "api_key_env": None,
-            "models": ["llama3", "mistral", "codellama", "phi3"],
-            "requires_api_key": False,
-            "requires_base_url": True,
-            "default_base_url": "http://localhost:11434",
-        },
-        "deepseek": {
-            "name": "DeepSeek",
-            "api_key_env": "DEEPSEEK_API_KEY",
-            "models": ["deepseek-chat", "deepseek-coder"],
-            "requires_api_key": True,
-        },
-        "ibm": {
-            "name": "IBM watsonx.ai",
-            "api_key_env": "IBM_API_KEY",
-            "models": [
-                "ibm/granite-13b-chat-v2",
-                "meta-llama/llama-3-70b-instruct",
-            ],
-            "requires_api_key": True,
-            "extra_env": ["IBM_CLOUD_URL", "IBM_PROJECT_ID"],
-        },
-        "nvidia": {
-            "name": "NVIDIA AI",
-            "api_key_env": "NVIDIA_API_KEY",
-            "models": [
-                "meta/llama3-70b-instruct",
-                "mistralai/mixtral-8x7b-instruct-v0.1",
-            ],
-            "requires_api_key": True,
-        },
-        "xai": {
-            "name": "xAI (Grok)",
-            "api_key_env": "XAI_API_KEY",
-            "models": ["grok-beta", "grok-vision-beta"],
-            "requires_api_key": True,
-        },
-        "perplexity": {
-            "name": "Perplexity AI",
-            "api_key_env": "PERPLEXITY_API_KEY",
-            "models": [
-                "llama-3.1-sonar-large-128k-online",
-                "llama-3.1-sonar-small-128k-online",
-            ],
-            "requires_api_key": True,
-        },
     }
 
-    def __init__(self):
-        """Initialize LLM Manager"""
+    def __init__(self, use_mongodb: bool = True):
+        """
+        Initialize LLM Manager
+
+        Args:
+            use_mongodb: Whether to load providers from MongoDB (default: True)
+        """
         self.credentials = {}
+        self.use_mongodb = use_mongodb
+        self._providers_cache = None  # Cache for MongoDB providers
+        self._model_manager = None
+
+        # Initialize ModelManager if MongoDB is enabled
+        if self.use_mongodb:
+            try:
+                self._model_manager = ModelManager()
+                print("✅ LLM Manager connected to MongoDB for provider data")
+            except Exception as e:
+                print(f"⚠️ MongoDB connection failed, using fallback providers: {e}")
+                self.use_mongodb = False
+
         self._load_credentials_from_env()
+
+    @property
+    def SUPPORTED_PROVIDERS(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get supported providers, either from MongoDB or fallback
+        Uses caching to avoid repeated database queries
+        """
+        if self.use_mongodb and self._model_manager:
+            # Return cached providers if available
+            if self._providers_cache is not None:
+                return self._providers_cache
+
+            try:
+                # Load providers from MongoDB
+                providers_list = self._model_manager.get_all_providers()
+
+                # Convert list to dictionary format keyed by provider ID
+                providers_dict = {}
+                for provider_doc in providers_list:
+                    provider_id = provider_doc.get("provider")
+                    if provider_id:
+                        # Remove MongoDB _id field and use provider as key
+                        provider_data = {
+                            k: v
+                            for k, v in provider_doc.items()
+                            if k not in ["_id", "provider"]
+                        }
+                        providers_dict[provider_id] = provider_data
+
+                # Cache the result
+                self._providers_cache = providers_dict
+
+                if providers_dict:
+                    print(f"✅ Loaded {len(providers_dict)} providers from MongoDB")
+                    return providers_dict
+                else:
+                    print("⚠️ No providers found in MongoDB, using fallback")
+                    return self.FALLBACK_PROVIDERS
+
+            except Exception as e:
+                print(f"⚠️ Error loading providers from MongoDB: {e}")
+                return self.FALLBACK_PROVIDERS
+        else:
+            # Use fallback providers
+            return self.FALLBACK_PROVIDERS
+
+    def refresh_providers(self):
+        """
+        Refresh providers cache from MongoDB
+        Call this after adding/updating providers in the database
+        """
+        self._providers_cache = None
+        # Trigger reload
+        _ = self.SUPPORTED_PROVIDERS
 
     def _load_credentials_from_env(self):
         """Load credentials from environment variables"""
@@ -374,13 +275,16 @@ class LLMManager:
         """Get information about a provider"""
         return self.SUPPORTED_PROVIDERS.get(provider, {})
 
-    @staticmethod
-    def get_all_providers() -> List[Dict[str, Any]]:
+    def get_all_providers(self) -> List[Dict[str, Any]]:
         """Get information about all supported providers"""
         return [
             {"id": provider_id, **provider_info}
-            for provider_id, provider_info in LLMManager.SUPPORTED_PROVIDERS.items()
+            for provider_id, provider_info in self.SUPPORTED_PROVIDERS.items()
         ]
+
+    def get_model_manager(self) -> Optional[ModelManager]:
+        """Get the ModelManager instance if MongoDB is enabled"""
+        return self._model_manager
 
 
 # Singleton instance
