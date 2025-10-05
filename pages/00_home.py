@@ -4,6 +4,7 @@ Home Page - Research Assistant Platform Dashboard
 
 import streamlit as st
 from src.utils.session_manager import SessionStateManager
+from src.utils.dynamic_selector import get_configured_providers
 from config.settings import Settings
 
 # Initialize session state
@@ -84,18 +85,22 @@ with col2:
     )
 
     st.markdown("#### System Status")
-    openai_status = (
-        "✅ Configured" if Settings.is_openai_configured() else "❌ Not configured"
+
+    # Get configured LLM providers
+    configured_providers = get_configured_providers()
+    llm_status = (
+        f"✅ {len(configured_providers)} provider(s) configured"
+        if configured_providers
+        else "❌ No providers configured"
     )
-    google_status = "✅ Configured" if Settings.is_google_configured() else "⚠️ Optional"
+
     mongodb_status = (
-        "✅ Configured" if Settings.is_mongodb_configured() else "⚠️ Optional"
+        "✅ Connected" if Settings.is_mongodb_configured() else "❌ Not configured"
     )
 
     st.markdown(
         f"""
-    - **OpenAI API**: {openai_status}
-    - **Google API**: {google_status}
+    - **LLM Providers**: {llm_status}
     - **MongoDB**: {mongodb_status}
     """
     )

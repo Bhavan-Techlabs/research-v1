@@ -338,16 +338,5 @@ with tab4:
         st.markdown(f"**Streamlit Version**: {st.__version__}")
         settings = Settings()
         st.markdown(
-            f"**Environment**: {'Production' if settings.is_openai_configured() else 'Development'}"
+            f"**MongoDB**: {'Connected' if settings.is_mongodb_configured() else 'Not Connected'}"
         )
-
-# Footer
-st.divider()
-st.markdown(
-    """
-<div style='text-align: center; color: gray;'>
-    Research Assistant v2.0 | Multi-LLM Support | Powered by LangChain
-</div>
-""",
-    unsafe_allow_html=True,
-)

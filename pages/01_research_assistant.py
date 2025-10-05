@@ -6,15 +6,24 @@ Clean and modular version with improved error handling
 import streamlit as st
 from src.core.research_search import ResearchSearcher
 from src.utils.session_manager import SessionStateManager
+from src.utils.dynamic_selector import (
+    has_any_provider_configured,
+    render_model_selector,
+)
 from config.settings import Settings
 from config.constants import UI_MESSAGES, EXAMPLE_QUERIES
 
 # Initialize session state
 SessionStateManager.initialize()
 
-# Check OpenAI API key
-if not Settings.is_openai_configured():
-    st.error(UI_MESSAGES["NO_OPENAI_KEY"])
+# Check if any LLM provider is configured
+if not has_any_provider_configured():
+    st.error(
+        "⚠️ No LLM providers configured. Please configure at least one provider in **Settings** page."
+    )
+    st.info(
+        "💡 Go to **Settings** → **LLM Providers** to configure your API keys (OpenAI, Anthropic, etc.)"
+    )
     st.stop()
 
 # Header
@@ -24,13 +33,15 @@ st.markdown("Search for research papers across multiple academic databases")
 with st.sidebar:
     st.header("⚙️ Search Configuration")
 
-    # Model selection
-    model = st.selectbox(
-        "AI Model",
-        Settings.get_model_options(),
-        index=0,
-        help="Choose the AI model for search operations",
+    # Model selection using dynamic selector
+    st.subheader("🤖 AI Model")
+    provider, model, _ = render_model_selector(
+        key_prefix="research_search", show_embedding=False
     )
+
+    if not provider or not model:
+        st.error("Please select a provider and model")
+        st.stop()
 
     # Search source selection
     st.subheader("📚 Search Sources")
@@ -41,8 +52,7 @@ with st.sidebar:
     use_google = st.checkbox(
         "Google Scholar",
         value=False,
-        help="Requires Google API key (configure in Settings)",
-        disabled=not Settings.is_google_configured(),
+        help="General web search (may require additional configuration)",
     )
     use_ddg = st.checkbox(
         "DuckDuckGo", value=False, help="General web search for research"
@@ -108,8 +118,10 @@ with tab1:
             st.warning("Please select at least one search source")
         else:
             try:
-                # Initialize searcher
-                searcher = ResearchSearcher(model_name=model)
+                # Initialize searcher with provider and model
+                searcher = ResearchSearcher(
+                    provider=provider, model_name=model, api_key=None
+                )  # API key managed by CredentialsManager
 
                 # Progress tracking
                 progress_bar = st.progress(0)

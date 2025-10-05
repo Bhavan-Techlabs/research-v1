@@ -6,6 +6,7 @@ from .session_manager import SessionStateManager
 from .prompt_manager import PromptManager
 from .mongo_manager import MongoDBManager
 from .model_manager import ModelManager
+from .embedding_model_manager import EmbeddingModelManager
 
 __all__ = [
     "DocumentProcessor",
@@ -14,4 +15,5 @@ __all__ = [
     "PromptManager",
     "MongoDBManager",
     "ModelManager",
+    "EmbeddingModelManager",
 ]

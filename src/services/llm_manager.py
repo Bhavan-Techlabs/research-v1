@@ -51,8 +51,6 @@ class LLMManager:
                 print(f"⚠️ MongoDB connection failed, using fallback providers: {e}")
                 self.use_mongodb = False
 
-        self._load_credentials_from_env()
-
     @property
     def SUPPORTED_PROVIDERS(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -107,39 +105,9 @@ class LLMManager:
         # Trigger reload
         _ = self.SUPPORTED_PROVIDERS
 
-    def _load_credentials_from_env(self):
-        """Load credentials from environment variables"""
-        for provider, config in self.SUPPORTED_PROVIDERS.items():
-            api_key_env = config.get("api_key_env")
-            creds = {}
-
-            # Load API key if required
-            if api_key_env:
-                api_key = os.getenv(api_key_env)
-                if api_key:
-                    creds["api_key"] = api_key
-
-            # Load extra environment variables
-            extra_env = config.get("extra_env", [])
-            for env_var in extra_env:
-                value = os.getenv(env_var)
-                if value:
-                    # Convert env var name to credential key (lowercase, remove prefixes)
-                    key = env_var.lower().replace(f"{provider.upper()}_", "")
-                    creds[key] = value
-
-            # Set default base URL for Ollama
-            if provider == "ollama" and "base_url" not in creds:
-                creds["base_url"] = config.get(
-                    "default_base_url", "http://localhost:11434"
-                )
-
-            if creds:
-                self.credentials[provider] = creds
-
     def set_credentials(self, provider: str, api_key: str, **kwargs):
         """
-        Set credentials for a provider
+        Set credentials for a provider (runtime configuration)
 
         Args:
             provider: Provider name (e.g., 'openai', 'anthropic')
