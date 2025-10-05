@@ -4,6 +4,7 @@
 streamlit>=1.30.0
 st-pages>=0.4.0
 python-dotenv>=1.0.0
+streamlit-authenticator>=0.4.2
 
 # AI & LLM
 openai>=1.0.0

@@ -1,0 +1,16 @@
+cookie:
+  expiry_days: 30
+  key: da47w23s
+  name: st_research_v1
+credentials:
+  usernames:
+    admin:
+      email: bhavanl@techprovint.com
+      first_name: Bhavan
+      last_name: Loganathan
+      password: abc # Will be hashed automatically
+      roles: # Optional
+      - admin
+      - editor
+      - viewer
+api_key: 08kvalseg5v6j1mgxhyg24xh7y5vzsj9
