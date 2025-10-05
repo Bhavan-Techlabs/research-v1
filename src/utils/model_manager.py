@@ -1,6 +1,7 @@
 """
 MongoDB Utility for Model/Provider Management
 Handles storage and retrieval of LLM provider configurations from MongoDB
+Also provides convenience methods for generating completions using configured LLMs
 """
 
 from typing import List, Dict, Optional
@@ -251,5 +252,181 @@ class ModelManager(MongoDBManager):
 
         current_models.remove(model)
         return self.update_provider(provider, {"models": current_models})
+
+    # ============================================================
+    # LLM COMPLETION METHODS
+    # ============================================================
+
+    def generate_completion(
+        self,
+        prompt: str,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2000,
+        **kwargs,
+    ) -> str:
+        """
+        Generate a completion using the configured LLM
+
+        This method provides a convenient way to generate completions without
+        manually managing LLMManager instances. It automatically:
+        1. Gets credentials from CredentialsManager
+        2. Initializes the appropriate LLM
+        3. Generates the completion
+        4. Returns the text response
+
+        Args:
+            prompt: The prompt text to send to the LLM
+            provider: Provider to use (if None, uses first configured provider)
+            model: Model to use (if None, uses first available model for provider)
+            temperature: Sampling temperature (0.0 to 1.0)
+            max_tokens: Maximum tokens to generate
+            **kwargs: Additional parameters to pass to the model
+
+        Returns:
+            The generated text response
+
+        Raises:
+            ValueError: If no providers are configured or initialization fails
+            Exception: For other errors during generation
+
+        Example:
+            >>> manager = ModelManager()
+            >>> response = manager.generate_completion(
+            ...     prompt="What is the capital of France?",
+            ...     temperature=0.5
+            ... )
+            >>> print(response)
+        """
+        from src.services.llm_manager import get_llm_manager
+        from src.utils.credentials_manager import CredentialsManager
+        from langchain_core.messages import HumanMessage
+
+        # Get LLM manager
+        llm_manager = get_llm_manager()
+
+        # Get configured providers
+        configured_providers = CredentialsManager.get_configured_providers()
+        if not configured_providers:
+            raise ValueError(
+                "No LLM providers configured. Please configure at least one provider in Settings."
+            )
+
+        # Determine provider to use
+        if provider is None:
+            provider = configured_providers[0]
+        elif provider not in configured_providers:
+            raise ValueError(
+                f"Provider '{provider}' is not configured. Configured providers: {', '.join(configured_providers)}"
+            )
+
+        # Get credentials and set them
+        creds = CredentialsManager.get_credential(provider)
+        llm_manager.set_credentials(provider, **creds)
+
+        # Determine model to use
+        if model is None:
+            available_models = llm_manager.get_available_models(provider)
+            if not available_models:
+                raise ValueError(f"No models available for provider '{provider}'")
+            model = available_models[0]
+
+        # Initialize the model
+        llm = llm_manager.initialize_model(
+            provider=provider,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs,
+        )
+
+        # Generate completion
+        response = llm.invoke([HumanMessage(content=prompt)])
+
+        # Return the text content
+        return response.content
+
+    def generate_streaming_completion(
+        self,
+        prompt: str,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2000,
+        **kwargs,
+    ):
+        """
+        Generate a streaming completion using the configured LLM
+
+        Similar to generate_completion but returns a generator that yields
+        chunks of the response as they are generated.
+
+        Args:
+            prompt: The prompt text to send to the LLM
+            provider: Provider to use (if None, uses first configured provider)
+            model: Model to use (if None, uses first available model for provider)
+            temperature: Sampling temperature (0.0 to 1.0)
+            max_tokens: Maximum tokens to generate
+            **kwargs: Additional parameters to pass to the model
+
+        Yields:
+            Chunks of the generated response
+
+        Raises:
+            ValueError: If no providers are configured or initialization fails
+            Exception: For other errors during generation
+
+        Example:
+            >>> manager = ModelManager()
+            >>> for chunk in manager.generate_streaming_completion("Hello"):
+            ...     print(chunk, end="", flush=True)
+        """
+        from src.services.llm_manager import get_llm_manager
+        from src.utils.credentials_manager import CredentialsManager
+        from langchain_core.messages import HumanMessage
+
+        # Get LLM manager
+        llm_manager = get_llm_manager()
+
+        # Get configured providers
+        configured_providers = CredentialsManager.get_configured_providers()
+        if not configured_providers:
+            raise ValueError(
+                "No LLM providers configured. Please configure at least one provider in Settings."
+            )
+
+        # Determine provider to use
+        if provider is None:
+            provider = configured_providers[0]
+        elif provider not in configured_providers:
+            raise ValueError(
+                f"Provider '{provider}' is not configured. Configured providers: {', '.join(configured_providers)}"
+            )
+
+        # Get credentials and set them
+        creds = CredentialsManager.get_credential(provider)
+        llm_manager.set_credentials(provider, **creds)
+
+        # Determine model to use
+        if model is None:
+            available_models = llm_manager.get_available_models(provider)
+            if not available_models:
+                raise ValueError(f"No models available for provider '{provider}'")
+            model = available_models[0]
+
+        # Initialize the model
+        llm = llm_manager.initialize_model(
+            provider=provider,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs,
+        )
+
+        # Stream the completion
+        for chunk in llm.stream([HumanMessage(content=prompt)]):
+            if hasattr(chunk, "content"):
+                yield chunk.content
 
     # close() is inherited from MongoDBManager

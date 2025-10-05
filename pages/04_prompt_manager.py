@@ -253,14 +253,22 @@ def try_prompt_dialog(prompt_title: str, prompt_data: Dict):
             }
         )
 
-        # Get LLM response
+        # Get LLM response with streaming
         try:
             model_manager = ModelManager()
 
-            with st.spinner("🤔 Thinking..."):
-                response = model_manager.generate_completion(
+            # with st.spinner("🤔 Thinking..."):
+            #     response = model_manager.generate_completion(
+            #         prompt=final_prompt, temperature=0.7, max_tokens=2000
+            #     )
+
+            # Display assistant message with streaming
+            with st.chat_message("assistant"):
+                # Use st.write_stream to display the response as it's generated
+                response_generator = model_manager.generate_streaming_completion(
                     prompt=final_prompt, temperature=0.7, max_tokens=2000
                 )
+                response = st.write_stream(response_generator)
 
             # Add assistant response to chat history
             st.session_state[chat_key].append(
@@ -274,7 +282,7 @@ def try_prompt_dialog(prompt_title: str, prompt_data: Dict):
             st.info("💡 Make sure you have configured your LLM in Settings page")
 
     # Clear chat button
-    col1, col2 = st.columns([1, 5])
+    col1, col2 = st.columns([2, 2])
     with col1:
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state[chat_key] = []
