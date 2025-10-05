@@ -1,22 +1,15 @@
-"""
-Seed LLM Providers to MongoDB
-This script helps you migrate or verify LLM provider data in MongoDB
-"""
+"""Seed LLM Providers to MongoDB"""
 
 import sys
 from pathlib import Path
 
-# Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.utils.model_manager import ModelManager
 
 
-def get_default_providers():
-    """
-    Get default provider configurations
-    This matches the original SUPPORTED_PROVIDERS structure
-    """
+def get_providers():
+    """Get default provider configurations"""
     return [
         {
             "provider": "openai",
@@ -222,120 +215,35 @@ def get_default_providers():
     ]
 
 
-def list_providers(model_manager):
-    """List all providers in MongoDB"""
-    print("\n" + "=" * 60)
-    print("PROVIDERS IN MONGODB")
-    print("=" * 60)
-
-    providers = model_manager.get_all_providers()
-
-    if not providers:
-        print("❌ No providers found in MongoDB")
-        return
-
-    for provider in providers:
-        print(
-            f"\n✅ {provider.get('name', 'Unknown')} ({provider.get('provider', 'N/A')})"
-        )
-        print(f"   Models: {', '.join(provider.get('models', []))}")
-        print(f"   Requires API Key: {provider.get('requires_api_key', True)}")
-
-    print(f"\n{'=' * 60}")
-    print(f"Total providers: {len(providers)}")
-    print("=" * 60)
-
-
-def seed_providers(model_manager, force=False):
-    """Seed default providers to MongoDB"""
-    print("\n" + "=" * 60)
-    print("SEEDING PROVIDERS TO MONGODB")
-    print("=" * 60)
-
-    default_providers = get_default_providers()
-
-    # Check existing providers
-    existing_providers = {
-        p.get("provider"): p for p in model_manager.get_all_providers()
-    }
-
-    added = 0
-    skipped = 0
-    updated = 0
-
-    for provider_data in default_providers:
-        provider_id = provider_data["provider"]
-
-        if provider_id in existing_providers and not force:
-            print(f"⏭️  Skipping {provider_data['name']} (already exists)")
-            skipped += 1
-        elif provider_id in existing_providers and force:
-            # Update existing
-            result = model_manager.update_provider(
-                provider_id,
-                {k: v for k, v in provider_data.items() if k != "provider"},
-            )
-            if result.get("success"):
-                print(f"🔄 Updated {provider_data['name']}")
-                updated += 1
-            else:
-                print(
-                    f"❌ Failed to update {provider_data['name']}: {result.get('message')}"
-                )
-        else:
-            # Add new
-            result = model_manager.add_provider(**provider_data)
-            if result.get("success"):
-                print(f"✅ Added {provider_data['name']}")
-                added += 1
-            else:
-                print(
-                    f"❌ Failed to add {provider_data['name']}: {result.get('message')}"
-                )
-
-    print(f"\n{'=' * 60}")
-    print(f"Added: {added} | Updated: {updated} | Skipped: {skipped}")
-    print("=" * 60)
-
-
 def main():
-    """Main function"""
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Manage LLM providers in MongoDB")
-    parser.add_argument(
-        "action",
-        choices=["list", "seed", "force-seed"],
-        help="Action to perform: list (show providers), seed (add missing), force-seed (update all)",
-    )
-    parser.add_argument(
-        "--mongodb-uri",
-        help="MongoDB connection URI (defaults to MONGODB_URI env var)",
-    )
-
-    args = parser.parse_args()
-
+    """Seed providers to MongoDB"""
     try:
-        # Initialize ModelManager
-        model_manager = ModelManager(mongodb_uri=args.mongodb_uri)
+        model_manager = ModelManager()
+        providers = get_providers()
 
-        if args.action == "list":
-            list_providers(model_manager)
-        elif args.action == "seed":
-            seed_providers(model_manager, force=False)
-        elif args.action == "force-seed":
-            print("\n⚠️  WARNING: This will update all existing providers!")
-            response = input("Continue? (yes/no): ")
-            if response.lower() == "yes":
-                seed_providers(model_manager, force=True)
+        print(f"Seeding {len(providers)} providers...")
+
+        for provider in providers:
+            provider_id = provider["provider"]
+            result = model_manager.add_provider(**provider)
+
+            if result.get("success"):
+                print(f"✓ {provider['name']}")
             else:
-                print("❌ Cancelled")
+                # Try updating if it already exists
+                result = model_manager.update_provider(
+                    provider_id, {k: v for k, v in provider.items() if k != "provider"}
+                )
+                if result.get("success"):
+                    print(f"✓ {provider['name']} (updated)")
+                else:
+                    print(f"✗ {provider['name']}: {result.get('message')}")
 
-        # Close connection
+        print("\nDone!")
         model_manager.close()
 
     except Exception as e:
-        print(f"\n❌ Error: {str(e)}")
+        print(f"Error: {e}")
         sys.exit(1)
 
 
