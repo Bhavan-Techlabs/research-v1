@@ -43,7 +43,7 @@ pyyaml>=6.0
 # Optional: Database & Advanced Features
 pymongo>=4.6.0                 # Optional: MongoDB for prompt storage
 pyzotero>=1.5.0                # Optional: Zotero integration
-bibtexparser>=2.0.0            # Optional: BibTeX parsing
+bibtexparser>=1.4.0,<2.0.0     # Optional: BibTeX parsing (2.0 is beta only)
 scidownl>=1.0.0                # Optional: Sci-Hub integration
 
 # Data Processing
