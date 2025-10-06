@@ -45,6 +45,7 @@ lxml>=4.9.0                    # XML/HTML parser
 arxiv>=2.1.0
 duckduckgo-search>=4.0.0
 langchain-google-community>=2.0.0
+semanticscholar>=0.11.0
 
 # Token Management & Utilities
 tiktoken>=0.5.0

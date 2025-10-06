@@ -55,11 +55,11 @@ class ArxivService:
         tools = load_tools(["arxiv"])
         prompt = hub.pull("hwchase17/react")
         agent = create_react_agent(self.llm, tools, prompt)
-        agent_executor = AgentExecutor(
-            agent=agent, tools=tools, verbose=False, handle_parsing_errors=True
-        )
-        result = agent_executor.invoke({"input": query})
-        return str(result["output"])
+        # agent_executor = AgentExecutor(
+        #     agent=agent, tools=tools, verbose=False, handle_parsing_errors=True
+        # )
+        result = agent.invoke({"messages": [{"role": "user", "content": query}]})
+        return str(result)
 
     def load_documents_from_query(
         self, query: str, max_docs: int = 10, load_all_meta: bool = True

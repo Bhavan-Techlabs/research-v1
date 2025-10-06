@@ -109,3 +109,24 @@ The goal is to make this application the one point for all research activities a
 - Easy pdf viewer in the application
 
 - List down all research applications and store it in mongo db
+
+research app
+* google search api
+* Document retriver from drive (sharepoint/onedrive, google drive, dropbox)
+* gpt structured output or normal generation
+* Duck duck go search
+* Tavily search
+* Arxiv
+* Semantic scholar
+* Pubmed
+* Scihub pdf download
+* extract from pdf or html
+* csv analyzer
+* scrapper
+* bibtex_search
+* zotero import
+* prepare csv list for zotero analysis (bulk analysis)
+* Finding published papers
+ - apis - dblp, arxiv, semantic scholar, pubmed, crossref, core.ac.uk
+
+* GPT researcher agent - https://github.com/assafelovic/gpt-researcher/tree/master (config_path will make multi llm work fine)
