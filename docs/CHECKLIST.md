@@ -130,3 +130,8 @@ research app
  - apis - dblp, arxiv, semantic scholar, pubmed, crossref, core.ac.uk
 
 * GPT researcher agent - https://github.com/assafelovic/gpt-researcher/tree/master (config_path will make multi llm work fine)
+
+
+https://chatgpt.com/share/68e4043b-8cec-8005-bc79-1bdb3a555cbd
+https://chatgpt.com/share/68e4070d-6228-8000-ac1c-00b2f62cb7d0
+

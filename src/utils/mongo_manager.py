@@ -1,6 +1,7 @@
 import os
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
+from config.settings import Settings
 
 
 class MongoDBManager:
@@ -9,15 +10,13 @@ class MongoDBManager:
     Subclass this for specific document types.
     """
 
-    def __init__(
-        self, collection_name, mongodb_uri=None, database_name="research_assistant"
-    ):
-        self.mongodb_uri = mongodb_uri or os.getenv("MONGODB_URI")
+    def __init__(self, collection_name, mongodb_uri=None, database_name=None):
+        self.mongodb_uri = mongodb_uri or Settings.MONGODB_URI
         if not self.mongodb_uri:
             raise ValueError(
                 "MongoDB URI not provided. Set MONGODB_URI environment variable or pass it as parameter."
             )
-        self.database_name = database_name
+        self.database_name = database_name or Settings.MONGODB_DATABASE
         self.collection_name = collection_name
         self.client = None
         self.db = None

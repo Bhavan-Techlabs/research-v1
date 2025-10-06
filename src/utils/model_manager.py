@@ -6,6 +6,7 @@ Also provides convenience methods for generating completions using configured LL
 
 from typing import List, Dict, Optional
 from pymongo.errors import DuplicateKeyError
+from config.settings import Settings
 from .mongo_manager import MongoDBManager
 
 
@@ -15,11 +16,9 @@ class ModelManager(MongoDBManager):
     Inherits from generic MongoDBManager.
     """
 
-    def __init__(
-        self, mongodb_uri: str = None, database_name: str = "research_assistant"
-    ):
+    def __init__(self, mongodb_uri: str = None, database_name: str = None):
         super().__init__(
-            collection_name="models",
+            collection_name=Settings.MONGODB_COLLECTION_MODELS,
             mongodb_uri=mongodb_uri,
             database_name=database_name,
         )

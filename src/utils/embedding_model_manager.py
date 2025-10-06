@@ -5,6 +5,7 @@ Handles storage and retrieval of embedding provider configurations from MongoDB
 
 from typing import List, Dict, Optional
 from pymongo.errors import DuplicateKeyError
+from config.settings import Settings
 from .mongo_manager import MongoDBManager
 
 
@@ -14,11 +15,9 @@ class EmbeddingModelManager(MongoDBManager):
     Inherits from generic MongoDBManager.
     """
 
-    def __init__(
-        self, mongodb_uri: str = None, database_name: str = "research_assistant"
-    ):
+    def __init__(self, mongodb_uri: str = None, database_name: str = None):
         super().__init__(
-            collection_name="embedding_models",
+            collection_name=Settings.MONGODB_COLLECTION_EMBEDDINGS,
             mongodb_uri=mongodb_uri,
             database_name=database_name,
         )
